@@ -52,6 +52,7 @@ const MINI_PDF = Buffer.from(
 );
 
 test('홈: 여행 목록·탭·새 여행 만들기', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-11-01T03:00:00Z')); // 출발 전 기준 (D-day 표시)
   await page.goto(BASE);
   await expect(page.getByTestId('trip-card')).toHaveCount(1);
   await expect(page.getByTestId('trip-card').first()).toContainText('D-');
