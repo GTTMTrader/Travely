@@ -1,0 +1,322 @@
+rules_version = '2';
+
+// Travely — Firestore 보안 규칙 (v3)
+// 원칙: 화면에서 버튼을 숨기는 것과 무관하게, 모든 읽기/쓰기를 여기서 다시 검사한다.
+//  - 여행 데이터는 trips/{tripId}/members/{uid} 문서가 status=='active' 인 계정만 읽는다.
+//  - 쓰기는 role 이 owner/editor 일 때만. viewer 의 쓰기는 서버에서 거부된다.
+//  - 수정은 version 이 정확히 +1 이어야 한다(낡은 화면 기준의 덮어쓰기 차단).
+//  - 초대 수락은 유효(미폐기·미만료)한 초대 토큰이 있을 때만, 초대에 적힌 권한 그대로.
+//  - 파일은 Firestore 문서에 조각(청크)으로 저장 — 조각 하나 최대 약 750KB.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function me() { return request.auth.uid; }
+    function memberPath(tripId, uid) { return /databases/$(database)/documents/trips/$(tripId)/members/$(uid); }
+    function invitePath(tripId, token) { return /databases/$(database)/documents/trips/$(tripId)/invites/$(token); }
+    function dayPath(tripId, dayId) { return /databases/$(database)/documents/trips/$(tripId)/days/$(dayId); }
+    function filePath(tripId, fid) { return /databases/$(database)/documents/trips/$(tripId)/files/$(fid); }
+
+    function isMember(tripId) {
+      return signedIn()
+        && exists(memberPath(tripId, me()))
+        && get(memberPath(tripId, me())).data.status == 'active';
+    }
+    function roleOf(tripId) { return get(memberPath(tripId, me())).data.role; }
+    function canEdit(tripId) { return isMember(tripId) && roleOf(tripId) in ['owner', 'editor']; }
+    function isOwner(tripId) { return isMember(tripId) && roleOf(tripId) == 'owner'; }
+
+    function strLen(v, min, max) { return v is string && v.size() >= min && v.size() <= max; }
+    function optStr(v, max) { return v == null || (v is string && v.size() <= max); }
+    function isDate(v) { return v is string && v.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'); }
+    function optDate(v) { return v == null || isDate(v); }
+    function isTime(v) { return v is string && v.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$'); }
+    function optTime(v) { return v == null || isTime(v); }
+    function optNum(v) { return v == null || v is number; }
+    function tokenOk(t) { return t is string && t.matches('^[A-Za-z0-9_-]{32,64}$'); }
+    function currencies() { return ['KRW', 'CNY', 'JPY', 'USD', 'HKD', 'TWD', 'THB', 'VND', 'SGD', 'EUR']; }
+    function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
+    function stamped(d) { return d.updatedBy == me() && d.updatedAt == request.time; }
+    // 새 문서: version 1, 작성자 = 나 / 수정: version +1, 작성 정보 유지
+    function created(d) { return d.version == 1 && d.createdBy == me() && d.createdAt == request.time && stamped(d); }
+    function bumped(d) {
+      return d.version == resource.data.version + 1 && stamped(d)
+        && d.createdBy == resource.data.createdBy && d.createdAt == resource.data.createdAt;
+    }
+
+    // 내 여행 목록: members 컬렉션 그룹에서 "내 uid" 문서만 조회 가능
+    match /{path=**}/members/{memberId} {
+      allow list: if signedIn() && resource.data.uid == me();
+    }
+
+    match /trips/{tripId} {
+      function validTrip(d) {
+        return d.keys().hasOnly(['name', 'countryCode', 'cities', 'startDate', 'endDate', 'timezone', 'baseCurrency', 'illustration',
+                                 'ownerUid', 'isSample', 'createdAt', 'updatedAt', 'updatedBy'])
+          && strLen(d.name, 1, 60)
+          && strLen(d.countryCode, 0, 3)
+          && d.cities is list && d.cities.size() <= 10
+          && isDate(d.startDate) && isDate(d.endDate) && d.endDate >= d.startDate
+          && strLen(d.timezone, 1, 64)
+          && d.baseCurrency in currencies()
+          && d.illustration in ['city', 'coast', 'blossom', 'temple', 'mountain', 'island']
+          && d.isSample is bool
+          && stamped(d);
+      }
+
+      allow get: if isMember(tripId);
+      allow list: if false;
+      // 생성: 같은 batch 안에서 내 owner 멤버 문서도 함께 만들어야 한다.
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == me()
+        && request.resource.data.createdAt == request.time
+        && validTrip(request.resource.data)
+        && getAfter(memberPath(tripId, me())).data.role == 'owner';
+      allow update: if canEdit(tripId)
+        && validTrip(request.resource.data)
+        && changed().hasOnly(['name', 'countryCode', 'cities', 'startDate', 'endDate', 'timezone', 'baseCurrency', 'illustration', 'updatedAt', 'updatedBy']);
+      allow delete: if isOwner(tripId);
+
+      // ───── 멤버 ─────
+      match /members/{uid} {
+        function validJoin() {
+          let d = request.resource.data;
+          let inv = get(invitePath(tripId, d.inviteToken)).data;
+          return d.keys().hasOnly(['uid', 'role', 'status', 'displayName', 'joinedAt', 'inviteToken'])
+            && tokenOk(d.inviteToken)
+            && exists(invitePath(tripId, d.inviteToken))
+            && inv.revoked == false
+            && request.time < inv.expiresAt
+            && d.role == inv.role
+            && d.role in ['editor', 'viewer']
+            && d.status == 'active'
+            && d.joinedAt == request.time
+            && strLen(d.displayName, 1, 40);
+        }
+        function validOwnerBootstrap() {
+          let d = request.resource.data;
+          return d.keys().hasOnly(['uid', 'role', 'status', 'displayName', 'joinedAt'])
+            && d.role == 'owner' && d.status == 'active'
+            && d.joinedAt == request.time
+            && strLen(d.displayName, 1, 40)
+            && getAfter(/databases/$(database)/documents/trips/$(tripId)).data.ownerUid == me();
+        }
+
+        // 내 멤버 문서는 (없어도) 조회 가능 — 초대 화면에서 '이미 참여 중' 판단용
+        allow get: if signedIn() && (uid == me() || isMember(tripId));
+        allow list: if isMember(tripId);
+        allow create: if signedIn()
+          && uid == me()
+          && request.resource.data.uid == me()
+          && !exists(memberPath(tripId, me()))
+          && (validOwnerBootstrap() || validJoin());
+        allow update: if
+          // 여행 주인: 다른 멤버의 권한(편집/보기)·접근 해제·복구
+          (isOwner(tripId) && uid != me()
+            && changed().hasOnly(['role', 'status', 'removedAt'])
+            && request.resource.data.role in ['editor', 'viewer']
+            && request.resource.data.status in ['active', 'removed'])
+          // 본인: 스스로 나가기 (주인은 불가 — 여행 삭제로)
+          || (uid == me() && isMember(tripId) && roleOf(tripId) != 'owner'
+            && changed().hasOnly(['status', 'removedAt'])
+            && request.resource.data.status == 'removed');
+        // 여행 삭제 정리용
+        allow delete: if isOwner(tripId);
+      }
+
+      // ───── 초대 링크 (문서 ID = 추측 불가능한 토큰) ─────
+      match /invites/{token} {
+        // 토큰을 아는 로그인 사용자는 그 초대 1건만 볼 수 있다 (목록 조회는 주인만)
+        allow get: if signedIn() && tokenOk(token);
+        allow list: if isOwner(tripId);
+        allow create: if isOwner(tripId)
+          && tokenOk(token)
+          && request.resource.data.keys().hasOnly(['role', 'revoked', 'createdBy', 'createdAt', 'expiresAt', 'tripName', 'inviterName'])
+          && request.resource.data.role in ['editor', 'viewer']
+          && request.resource.data.revoked == false
+          && request.resource.data.createdBy == me()
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.expiresAt is timestamp
+          && request.resource.data.expiresAt > request.time
+          && request.resource.data.expiresAt < request.time + duration.value(31, 'd')
+          && strLen(request.resource.data.tripName, 1, 60)
+          && strLen(request.resource.data.inviterName, 1, 40);
+        allow update: if isOwner(tripId)
+          && changed().hasOnly(['revoked', 'revokedAt'])
+          && request.resource.data.revoked == true;
+        allow delete: if isOwner(tripId);
+      }
+
+      // ───── 날짜 (문서 ID = YYYY-MM-DD) ─────
+      match /days/{dayId} {
+        allow read: if isMember(tripId);
+        allow create: if canEdit(tripId)
+          && isDate(dayId)
+          && request.resource.data.keys().hasOnly(['date', 'index', 'city'])
+          && request.resource.data.date == dayId
+          && request.resource.data.index is int
+          && strLen(request.resource.data.city, 0, 40);
+        allow update: if canEdit(tripId)
+          && changed().hasOnly(['index', 'city'])
+          && request.resource.data.index is int
+          && strLen(request.resource.data.city, 0, 40);
+        allow delete: if canEdit(tripId);
+      }
+
+      // ───── 일정 항목 (dayId == null 이면 후보 장소) ─────
+      match /items/{itemId} {
+        function validItem(d) {
+          return d.keys().hasOnly(['id', 'dayId', 'order', 'kind', 'category', 'tag', 'time', 'memo', 'place', 'bookingIds', 'checklist',
+                                   'createdBy', 'createdAt', 'updatedBy', 'updatedAt', 'version'])
+            && d.id == itemId
+            && (d.dayId == null || (isDate(d.dayId) && existsAfter(dayPath(tripId, d.dayId))))
+            && d.order is number
+            && d.kind in ['place', 'memo', 'flight']
+            && (d.category == null || d.category in ['sight', 'stay', 'food', 'cafe', 'shop', 'transport', 'etc'])
+            && strLen(d.tag, 0, 30)
+            && optTime(d.time)
+            && strLen(d.memo, 0, 2000)
+            && (d.place == null || d.place is map)
+            && (d.kind != 'place' || (d.place is map && strLen(d.place.nameKo, 1, 120)))
+            && (d.kind != 'memo' || d.memo.size() >= 1)
+            && d.bookingIds is list && d.bookingIds.size() <= 10
+            && (d.kind != 'flight' || d.bookingIds.size() >= 1)
+            && d.checklist is list && d.checklist.size() <= 40
+            && d.version is int;
+        }
+        allow read: if isMember(tripId);
+        allow create: if canEdit(tripId) && validItem(request.resource.data) && created(request.resource.data);
+        allow update: if canEdit(tripId) && validItem(request.resource.data) && bumped(request.resource.data);
+        allow delete: if canEdit(tripId);
+      }
+
+      // ───── 이동 정보 (문서 ID = 출발항목__도착항목) ─────
+      match /legs/{legId} {
+        function validLeg(d) {
+          return d.keys().hasOnly(['id', 'fromId', 'toId', 'mode', 'durationMin', 'distanceM', 'fareAmount', 'fareCurrency', 'memo',
+                                   'source', 'geometry', 'routedAt', 'routedFrom', 'routedTo', 'updatedBy', 'updatedAt', 'version'])
+            && d.id == legId
+            && legId == d.fromId + '__' + d.toId
+            && d.mode in ['walk', 'taxi', 'bus', 'subway', 'train', 'flight', 'etc']
+            && optNum(d.durationMin) && optNum(d.distanceM) && optNum(d.fareAmount)
+            && d.fareCurrency in currencies()
+            && strLen(d.memo, 0, 300)
+            && (d.source == null || d.source in ['route', 'manual'])
+            && optStr(d.geometry, 200000)
+            && optNum(d.routedAt)
+            && optStr(d.routedFrom, 60) && optStr(d.routedTo, 60)
+            && d.version is int
+            && stamped(d);
+        }
+        allow read: if isMember(tripId);
+        allow create: if canEdit(tripId) && validLeg(request.resource.data) && request.resource.data.version == 1;
+        allow update: if canEdit(tripId) && validLeg(request.resource.data) && request.resource.data.version == resource.data.version + 1;
+        allow delete: if canEdit(tripId);
+      }
+
+      // ───── 예약 ─────
+      match /bookings/{bookingId} {
+        function validBooking(d) {
+          return d.keys().hasOnly(['id', 'type', 'title', 'startDate', 'startTime', 'endDate', 'endTime', 'reservationNo', 'memo', 'flight', 'fileIds',
+                                   'createdBy', 'createdAt', 'updatedBy', 'updatedAt', 'version'])
+            && d.id == bookingId
+            && d.type in ['flight', 'stay', 'transport', 'ticket', 'etc']
+            && strLen(d.title, 1, 80)
+            && optDate(d.startDate) && optTime(d.startTime) && optDate(d.endDate) && optTime(d.endTime)
+            && strLen(d.reservationNo, 0, 60)
+            && strLen(d.memo, 0, 2000)
+            && (d.flight == null || d.flight is map)
+            && (d.type != 'flight' || d.flight is map)
+            && d.fileIds is list && d.fileIds.size() <= 20
+            && d.version is int;
+        }
+        allow read: if isMember(tripId);
+        allow create: if canEdit(tripId) && validBooking(request.resource.data) && created(request.resource.data);
+        allow update: if canEdit(tripId) && validBooking(request.resource.data) && bumped(request.resource.data);
+        allow delete: if canEdit(tripId);
+      }
+
+      // ───── 첨부 파일: 메타 + 조각들 ─────
+      match /files/{fileId} {
+        allow read: if isMember(tripId);
+        allow create: if canEdit(tripId)
+          && request.resource.data.keys().hasOnly(['id', 'name', 'mime', 'size', 'pages', 'thumb', 'chunkCount', 'complete', 'uploadedBy', 'uploadedAt'])
+          && request.resource.data.id == fileId
+          && strLen(request.resource.data.name, 1, 120)
+          && request.resource.data.mime in ['image/jpeg', 'image/png', 'application/pdf']
+          && request.resource.data.size is int && request.resource.data.size <= 10 * 1024 * 1024
+          && request.resource.data.pages is int
+          && strLen(request.resource.data.thumb, 0, 60000)
+          && request.resource.data.chunkCount is int && request.resource.data.chunkCount >= 1 && request.resource.data.chunkCount <= 16
+          && request.resource.data.complete is bool
+          && request.resource.data.uploadedBy == me()
+          && request.resource.data.uploadedAt == request.time;
+        // 업로드 완료 표시만 바꿀 수 있다
+        allow update: if canEdit(tripId)
+          && changed().hasOnly(['complete'])
+          && request.resource.data.complete == true;
+        allow delete: if canEdit(tripId);
+
+        match /chunks/{n} {
+          allow read: if isMember(tripId);
+          // 조각은 덮어쓰지 않고 새로만 만든다. 메타 문서가 (같은 batch 포함) 있어야 함
+          allow create: if canEdit(tripId)
+            && n.matches('^[0-9]{4}$')
+            && existsAfter(filePath(tripId, fileId))
+            && request.resource.data.keys().hasOnly(['n', 'data'])
+            && request.resource.data.n is int
+            && request.resource.data.data is bytes
+            && request.resource.data.data.size() <= 750000;
+          allow update: if false;
+          allow delete: if canEdit(tripId);
+        }
+      }
+
+      // ───── 가계부 ─────
+      match /expenses/{expenseId} {
+        function validExpense(d) {
+          return d.keys().hasOnly(['id', 'title', 'date', 'time', 'category', 'amount', 'currency', 'krwRate', 'krwRateDate', 'krwActual',
+                                   'method', 'cardName', 'platform', 'payers', 'split', 'memo',
+                                   'createdBy', 'createdAt', 'updatedBy', 'updatedAt', 'version'])
+            && d.id == expenseId
+            && strLen(d.title, 1, 100)
+            && optDate(d.date) && optTime(d.time)
+            && d.category in ['stay', 'food', 'cafe', 'transport', 'ticket', 'shop', 'etc']
+            && d.amount is number && d.amount > 0 && d.amount < 1000000000000
+            && d.currency in currencies()
+            && d.krwRate is number && d.krwRate > 0
+            && optDate(d.krwRateDate)
+            && (d.krwActual == null || (d.krwActual is number && d.krwActual >= 0))
+            && d.method in ['cash', 'credit', 'debit', 'alipay', 'wechat', 'etc']
+            && strLen(d.cardName, 0, 60)
+            && strLen(d.platform, 0, 60)
+            && d.payers is map && d.payers.size() >= 1 && d.payers.size() <= 10
+            && d.split is map && d.split.mode in ['equal', 'amount', 'ratio'] && d.split.shares is map && d.split.shares.size() <= 10
+            && strLen(d.memo, 0, 1000)
+            && d.version is int;
+        }
+        allow read: if isMember(tripId);
+        allow create: if canEdit(tripId) && validExpense(request.resource.data) && created(request.resource.data);
+        allow update: if canEdit(tripId) && validExpense(request.resource.data) && bumped(request.resource.data);
+        allow delete: if canEdit(tripId);
+      }
+
+      // ───── 준비물 ─────
+      match /packing/{packId} {
+        function validPacking(d) {
+          return d.keys().hasOnly(['id', 'text', 'owner', 'done', 'order', 'updatedBy', 'updatedAt', 'version'])
+            && strLen(d.text, 1, 100)
+            && (d.owner == 'shared' || exists(memberPath(tripId, d.owner)))
+            && d.done is bool
+            && d.order is number
+            && d.version is int
+            && stamped(d);
+        }
+        allow read: if isMember(tripId);
+        allow create: if canEdit(tripId) && validPacking(request.resource.data) && request.resource.data.version == 1;
+        allow update: if canEdit(tripId) && validPacking(request.resource.data) && request.resource.data.version == resource.data.version + 1;
+        allow delete: if canEdit(tripId);
+      }
+    }
+  }
+}

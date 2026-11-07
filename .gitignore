@@ -1,0 +1,15 @@
+node_modules
+dist
+.env
+.env.local
+.firebaserc
+*-debug.log
+test-results
+playwright-report
+dist-demo
+.env.*.local
+tsconfig.tsbuildinfo
+worker/.wrangler
+worker/.dev.vars
+dist-preview
+travely-preview.html

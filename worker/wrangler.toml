@@ -1,0 +1,13 @@
+name = "travely-api"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+
+[vars]
+# Firebase 프로젝트 ID (로그인 토큰 검증용)
+FIREBASE_PROJECT_ID = "travely-d28e8"
+# 앱 주소 (CORS). GitHub Pages 는 https://<깃허브아이디>.github.io  — 여러 개면 쉼표로 구분
+ALLOWED_ORIGINS = "https://gttmtrader.github.io,http://127.0.0.1:5173"
+
+# 비밀값은 여기 적지 말고 명령으로 등록:
+#   npx wrangler secret put ORS_API_KEY      (필수: 경로 조회)
+#   npx wrangler secret put RAPIDAPI_KEY     (선택: 편명 자동 조회)
