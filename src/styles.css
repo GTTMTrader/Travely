@@ -310,3 +310,13 @@ a { color: var(--primary); }
 .pin-map { height: 50dvh; min-height: 280px; border-radius: 18px; overflow: hidden; background: #ece9f5; margin-bottom: 12px; position: relative; }
 .pin-map .leaflet-container { width: 100%; height: 100%; }
 .pin-center { position: absolute; left: 50%; top: 50%; z-index: 500; transform: translate(-50%, -100%); pointer-events: none; font-size: 32px; }
+
+/* 추억 앨범 */
+.al-sec { margin: 0 0 14px; }
+.al-head { display: flex; align-items: center; gap: 8px; margin: 0 2px 8px; }
+.al-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.al-thumb { position: relative; aspect-ratio: 1; border-radius: 12px; overflow: hidden; background: var(--surface-2); }
+.al-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.al-thumb button { position: absolute; top: 4px; right: 4px; width: 26px; height: 26px; border-radius: 50%; border: 0; background: rgba(20, 14, 40, 0.6); color: #fff; font-size: 17px; line-height: 1; padding: 0; }
+.al-add { aspect-ratio: 1; border-radius: 12px; border: 1.5px dashed var(--line-2, #d9d3ea); background: var(--surface); color: var(--ink-2); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 13px; font-weight: 700; padding: 0; }
+.album-btn { background: #fff4ee; border-color: #f6cdbb; color: #c2552f; }

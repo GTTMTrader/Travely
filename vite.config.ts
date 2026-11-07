@@ -42,6 +42,8 @@ export default defineConfig(({ mode }) => ({
         // 앱 화면 파일만 캐시. 일정 데이터는 Firestore 로컬 캐시, 예약 파일은 IndexedDB 가 담당. 지도 타일은 캐시하지 않음.
         navigateFallback: 'index.html',
         globPatterns: ['**/*.{js,css,html,svg,png,woff2,mjs}'],
+        // 앨범용 한글 글꼴(약 1.7MB)은 앨범 만들 때만 받음
+        globIgnores: ['**/*gowun-batang*', '**/*gaegu*'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
       },
     }),

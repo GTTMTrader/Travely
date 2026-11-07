@@ -8,6 +8,7 @@ import { formatDateTime } from '../lib/time';
 import { isDemo } from '../data/backend';
 import { ConfirmButton, copyText, Icon, Sheet } from '../components/ui';
 import TripFormSheet from './TripFormSheet';
+import AlbumSheet from './AlbumSheet';
 
 const ROLE = { owner: '만든 사람', editor: '같이 편집', viewer: '보기 전용' } as const;
 
@@ -22,6 +23,7 @@ export default function ShareSheet({ onClose }: { onClose: () => void }) {
   const [url, setUrl] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [edit, setEdit] = useState(false);
+  const [album, setAlbum] = useState(false);
   const now = Date.now();
   const activeInv = invites.filter((i) => !i.revoked && i.expiresAt > now);
 
@@ -46,6 +48,7 @@ export default function ShareSheet({ onClose }: { onClose: () => void }) {
     await copyText(link, '링크 복사');
   };
 
+  if (album) return <AlbumSheet onClose={() => setAlbum(false)} />;
   if (edit) return <TripFormSheet user={c.user} bundle={c.bundle} onClose={() => setEdit(false)} />;
 
   return (
@@ -131,6 +134,7 @@ export default function ShareSheet({ onClose }: { onClose: () => void }) {
 
       <h3 style={{ marginTop: 22 }}>여행 설정</h3>
       <div className="col">
+        <button className="btn block album-btn" onClick={() => setAlbum(true)} data-testid="open-album"><Icon name="camera" /> 추억 앨범 만들기 (PDF · 사진첩)</button>
         {c.canEditRole && <button className="btn block" onClick={() => setEdit(true)} disabled={!c.editable} data-testid="edit-trip"><Icon name="settings" /> 여행 정보 수정 (이름·도시·기간·통화)</button>}
         {isOwner ? (
           <ConfirmButton label="여행 삭제" confirmLabel="정말 삭제 (모두에게서 사라져요)" onConfirm={() => run(async () => { await deleteTrip(c.tripId, c.user.uid); nav('/'); })} />

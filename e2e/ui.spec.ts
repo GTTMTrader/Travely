@@ -550,3 +550,28 @@ test('여행 기간이 아니면 자동 이동·지금 표시 없음', async ({ 
   await expect(page.getByTestId('go-now')).toHaveCount(0);
   expect(await page.evaluate(() => window.scrollY)).toBeLessThan(10);
 });
+
+test('추억 앨범: 사진 고르기 → PDF + 날짜별 이미지 만들기 → 저장', async ({ page }) => {
+  test.setTimeout(120_000);
+  await openTrip(page, '칭다오 · 옌타이');
+  await page.getByTestId('share-btn').click();
+  await page.getByTestId('open-album').click();
+  const fx = (n: number) => `e2e/fixtures/photo${n}.jpg`;
+  await page.getByTestId('album-cover').setInputFiles(fx(1));
+  await page.getByTestId('album-photos-2026-11-08').setInputFiles([fx(2), fx(3), fx(4)]);
+  await page.getByTestId('album-photos-2026-11-09').setInputFiles([fx(5), fx(6)]);
+  await expect(page.locator('.al-thumb')).toHaveCount(6);
+  await page.getByTestId('album-make').click();
+  await expect(page.getByTestId('album-done')).toBeVisible({ timeout: 90_000 });
+  await expect(page.getByTestId('album-save-images')).toContainText('4장'); // 표지 + DAY 3장
+  const dl = page.waitForEvent('download');
+  await page.getByTestId('album-save-pdf').click();
+  const pdf = await dl;
+  // (헤드리스 크롬은 한글 파일 이름을 'download'로 바꿔서 이름은 검사하지 않음 — 아이폰 공유 화면에선 한글 이름 그대로)
+  await pdf.saveAs('test-results/album/album.pdf');
+  const imgs: Promise<unknown>[] = [];
+  page.on('download', (d) => imgs.push(d.saveAs(`test-results/album/img${imgs.length}.jpg`)));
+  await page.getByTestId('album-save-images').click();
+  await expect.poll(() => imgs.length, { timeout: 10_000 }).toBe(4);
+  await Promise.all(imgs);
+});
