@@ -112,6 +112,7 @@ export function Sheet({ onClose, children, label, wide }: { onClose: () => void;
     let startX = 0;
     let dy = 0;
     let dragging = false;
+    let fromHandle = false;
     const skip = (t: EventTarget | null) => !!(t as Element | null)?.closest?.('.leaflet-container, textarea, .chips, .confirm-back, [data-nodrag]');
     const reset = () => {
       el.style.transition = 'transform .22s ease';
@@ -121,6 +122,7 @@ export function Sheet({ onClose, children, label, wide }: { onClose: () => void;
       if (e.touches.length !== 1 || skip(e.target)) return void (startY = null);
       startY = e.touches[0].clientY;
       startX = e.touches[0].clientX;
+      fromHandle = !!(e.target as Element).closest?.('.grab-zone, .sheet > h3');
       dy = 0;
       dragging = false;
     };
@@ -129,8 +131,10 @@ export function Sheet({ onClose, children, label, wide }: { onClose: () => void;
       const d = e.touches[0].clientY - startY;
       if (!dragging) {
         if (d < -4 || Math.abs(e.touches[0].clientX - startX) > Math.abs(d) + 4) return void (startY = null); // 위로 스크롤·가로 이동
+        if (el.scrollTop > 0 && !fromHandle) return void (startY = null); // 내용 중간이면 그냥 스크롤 (손잡이·제목은 예외)
+        // 내용이 긴 창은 아이폰이 첫 움직임부터 '고무줄 튕김'으로 가져가 버리므로, 맨 위에서 아래로 당기면 처음부터 막는다
+        if (d > 0) e.preventDefault();
         if (d < 8) return;
-        if (el.scrollTop > 0) return void (startY = null); // 내용 중간이면 그냥 스크롤
         dragging = true;
         el.style.transition = 'none';
         (document.activeElement as HTMLElement | null)?.blur?.();

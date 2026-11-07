@@ -501,6 +501,14 @@ test('창 끌어내리기 → "창을 닫을까요?" 확인/취소, 바깥 누�
   await pullDown();
   await page.getByTestId('close-ok').click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
+  // 내용이 긴 창(공유·설정)도 맨 위에서 끌어내리면 확인
+  await page.setViewportSize({ width: 390, height: 560 });
+  await page.getByTestId('share-btn').click();
+  expect(await page.locator('.sheet').evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
+  await pullDown();
+  await expect(page.getByRole('alertdialog')).toContainText('창을 닫을까요?');
+  await page.getByTestId('close-ok').click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
   // 바깥(어두운 부분) 누르기
   await page.getByTestId('nav-bookings').click();
   await page.getByTestId('add-booking').click();
