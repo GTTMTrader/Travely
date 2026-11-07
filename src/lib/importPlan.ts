@@ -471,6 +471,12 @@ export function buildImportPlan(data: unknown, days: Day[], baseCurrency: Curren
       warnings.push('날짜 정보가 없어 모두 첫날에 넣어요. 날짜별로 나누려면 "days" 형식을 써 주세요.');
   }
 
+  // 날짜 없이 담아 둘 후보 장소: { "candidates": [ ... ] }
+  if (isObj(root)) {
+    const cand = pick(root, ['candidates', 'candidate', 'wishlist', 'optionalPlaces', '후보', '후보장소', '선택장소']);
+    if (Array.isArray(cand)) cand.forEach((raw) => push(bucket(null), raw));
+  }
+
   if (outOfRange.size) warnings.push(`여행 기간 밖(${[...outOfRange].slice(0, 4).join(', ')}${outOfRange.size > 4 ? ' 등' : ''}) 일정은 '후보 장소'로 넣어요. 여행 기간을 먼저 늘리면 그 날짜로 들어가요.`);
   if (skipped) warnings.push(`이름·메모가 없는 ${skipped}개는 건너뛰어요.`);
   if (total >= 300) warnings.push('한 번에 300개까지만 가져와요.');
@@ -509,6 +515,9 @@ export function gptPrompt(tripName: string, days: Day[]): string {
         { "time": "12:00", "type": "memo", "memo": "점심은 근처에서 자유롭게" }
       ]
     }
+  ],
+  "candidates": [
+    { "name": "날짜 안 정한 가볼 만한 곳 (선택)", "category": "shop", "memo": "시간 남으면" }
   ]
 }
 

@@ -12,7 +12,9 @@ describe('JSON 일정 가져오기', () => {
   it('Travely 권장 형식 그대로', () => {
     const json = JSON.parse(gptPrompt('t', days).match(/형식:\n([\s\S]*?)\n\n규칙/)![1].replace('YYYY-MM-DD', '2026-11-09'));
     const p = buildImportPlan(json, days, 'CNY');
-    expect(p.total).toBe(2);
+    expect(p.total).toBe(3);
+    expect(p.days[1]).toMatchObject({ dayId: null });
+    expect(p.days[1].items[0].place?.nameKo).toContain('가볼 만한 곳');
     const [a, b] = p.days[0].items;
     expect(p.days[0]).toMatchObject({ dayId: '2026-11-09', city: '도시 이름' });
     expect(a).toMatchObject({ kind: 'place', time: '09:30', category: 'sight' });
