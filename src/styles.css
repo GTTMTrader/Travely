@@ -284,7 +284,14 @@ a { color: var(--primary); }
 /* ── 바텀시트 ── */
 .sheet-bg { position: fixed; inset: 0; z-index: 60; background: rgba(25, 18, 50, 0.4); display: flex; align-items: flex-end; justify-content: center; overscroll-behavior: none; touch-action: none; }
 .sheet { touch-action: pan-y; overflow-x: hidden; width: 100%; max-width: 520px; max-height: 92dvh; overflow-y: auto; background: var(--bg); border-radius: 26px 26px 0 0; padding: 8px 20px calc(22px + var(--safe-b)); overscroll-behavior: contain; }
-.sheet .grab { width: 44px; height: 5px; border-radius: 5px; background: #ddd8ea; margin: 4px auto 12px; }
+.sheet .grab-zone { margin: -8px -20px 4px; padding: 10px 0 8px; cursor: grab; }
+.sheet .grab { width: 44px; height: 5px; border-radius: 5px; background: #ddd8ea; margin: 0 auto; }
+.confirm-back { position: fixed; inset: 0; z-index: 90; background: rgba(25, 18, 50, 0.35); display: flex; align-items: center; justify-content: center; padding: 24px; touch-action: none; overscroll-behavior: none; }
+.confirm-box { width: min(320px, 100%); background: var(--surface); border-radius: 22px; padding: 22px 18px 16px; text-align: center; box-shadow: 0 18px 44px rgba(25, 18, 50, 0.25); animation: pop .16s ease-out; }
+.confirm-box b { font-size: 17px; letter-spacing: -0.02em; }
+.confirm-box p { margin: 8px 0 16px; font-size: 13.5px; color: var(--ink-2); }
+.confirm-box .btn { min-height: 48px; }
+@keyframes pop { from { transform: scale(0.94); opacity: 0; } to { transform: none; opacity: 1; } }
 .sheet h3 { margin: 4px 0 16px; font-size: 20px; letter-spacing: -0.02em; }
 .sheet .actions { display: flex; gap: 8px; margin-top: 6px; }
 .sheet .actions > * { flex: 1; }

@@ -776,7 +776,7 @@ export async function importPlanItems(tripId: string, uid: string, plan: import(
           });
         }
         const day = days.find((x) => x.date === d.dayId);
-        if (d.city && day && !day.city) ops.push({ type: 'update', path: P.doc(tripId, 'days', d.dayId), data: { city: d.city } });
+        if (d.city && day && day.city !== d.city) ops.push({ type: 'update', path: P.doc(tripId, 'days', d.dayId), data: { city: d.city } });
       }
       await store.batch(ops);
       added += d.items.length;

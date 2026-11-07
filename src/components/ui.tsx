@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Illustration } from '../lib/types';
 
 // ───────── 날짜별 파스텔 보조색 ─────────
@@ -84,22 +84,99 @@ export function unlockScroll() {
 }
 
 // ───────── 바텀시트 ─────────
+/**
+ * 아래에서 올라오는 창. 위에서 아래로 끌어내리거나(내용이 맨 위일 때) 바깥을 누르면
+ * "창을 닫을까요?" 확인 후 닫힌다. 저장·취소 버튼은 바로 닫는다.
+ */
 export function Sheet({ onClose, children, label, wide }: { onClose: () => void; children: ReactNode; label: string; wide?: boolean }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [asking, setAsking] = useState(false);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && closeRef.current();
     window.addEventListener('keydown', onKey);
     lockScroll();
     return () => {
       window.removeEventListener('keydown', onKey);
       unlockScroll();
     };
-  }, [onClose]);
+  }, []);
+
+  // 끌어내리기
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    let startY: number | null = null;
+    let startX = 0;
+    let dy = 0;
+    let dragging = false;
+    const skip = (t: EventTarget | null) => !!(t as Element | null)?.closest?.('.leaflet-container, textarea, .chips, .confirm-back, [data-nodrag]');
+    const reset = () => {
+      el.style.transition = 'transform .22s ease';
+      el.style.transform = '';
+    };
+    const start = (e: TouchEvent) => {
+      if (e.touches.length !== 1 || skip(e.target)) return void (startY = null);
+      startY = e.touches[0].clientY;
+      startX = e.touches[0].clientX;
+      dy = 0;
+      dragging = false;
+    };
+    const move = (e: TouchEvent) => {
+      if (startY === null) return;
+      const d = e.touches[0].clientY - startY;
+      if (!dragging) {
+        if (d < -4 || Math.abs(e.touches[0].clientX - startX) > Math.abs(d) + 4) return void (startY = null); // 위로 스크롤·가로 이동
+        if (d < 8) return;
+        if (el.scrollTop > 0) return void (startY = null); // 내용 중간이면 그냥 스크롤
+        dragging = true;
+        el.style.transition = 'none';
+        (document.activeElement as HTMLElement | null)?.blur?.();
+      }
+      e.preventDefault();
+      dy = Math.max(0, d - 8);
+      el.style.transform = `translateY(${dy}px)`;
+    };
+    const end = () => {
+      if (dragging) {
+        reset();
+        if (dy > 90) setAsking(true);
+      }
+      startY = null;
+      dragging = false;
+    };
+    el.addEventListener('touchstart', start, { passive: true });
+    el.addEventListener('touchmove', move, { passive: false });
+    el.addEventListener('touchend', end);
+    el.addEventListener('touchcancel', end);
+    return () => {
+      el.removeEventListener('touchstart', start);
+      el.removeEventListener('touchmove', move);
+      el.removeEventListener('touchend', end);
+      el.removeEventListener('touchcancel', end);
+    };
+  }, []);
+
   return (
-    <div className="sheet-bg" onClick={onClose}>
-      <div className="sheet" role="dialog" aria-modal="true" aria-label={label} onClick={(e) => e.stopPropagation()} style={wide ? { maxHeight: '96dvh' } : undefined}>
-        <div className="grab" />
+    <div className="sheet-bg" onClick={() => setAsking(true)}>
+      <div ref={ref} className="sheet" role="dialog" aria-modal="true" aria-label={label} onClick={(e) => e.stopPropagation()} style={wide ? { maxHeight: '96dvh' } : undefined}>
+        <div className="grab-zone"><div className="grab" /></div>
         {children}
       </div>
+      {asking && (
+        <div className="confirm-back" onClick={(e) => { e.stopPropagation(); setAsking(false); }}>
+          <div className="confirm-box" role="alertdialog" aria-label="닫기 확인" onClick={(e) => e.stopPropagation()}>
+            <b>창을 닫을까요?</b>
+            <p>저장하지 않은 내용은 사라져요.</p>
+            <div className="row" style={{ gap: 10 }}>
+              <button className="btn grow" onClick={() => setAsking(false)} data-testid="close-cancel">취소</button>
+              <button className="btn primary grow" onClick={() => closeRef.current()} data-testid="close-ok">확인</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -471,3 +471,42 @@ test('JSON 일정 가져오기: 붙여넣기 → 미리보기 → 날짜별 추�
   await expect(page.getByTestId('tl-2026-11-09')).toContainText('🚕 택시 · 약 12분');
   await expect(page.getByTestId('cands')).toContainText('기간 밖 장소');
 });
+
+test('창 끌어내리기 → "창을 닫을까요?" 확인/취소, 바깥 누르기도 확인', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openTrip(page, '칭다오 · 옌타이');
+  const cdp = await page.context().newCDPSession(page);
+  const touch = (type: string, x = 0, y = 0) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 1 }] } as never);
+  const pullDown = async () => {
+    const box = (await page.locator('.sheet').boundingBox())!;
+    const x = box.x + box.width / 2;
+    const y = box.y + 60; // 제목 근처
+    await touch('touchStart', x, y);
+    for (let i = 1; i <= 12; i++) await touch('touchMove', x, y + i * 18);
+    await touch('touchEnd');
+  };
+  await page.getByTestId('add-item').click();
+  await page.locator('#item-name').fill('끌어내리기 테스트');
+  await pullDown();
+  await expect(page.getByRole('alertdialog')).toContainText('창을 닫을까요?');
+  await page.getByTestId('close-cancel').click();
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
+  await expect(page.locator('#item-name')).toHaveValue('끌어내리기 테스트'); // 취소하면 입력 그대로
+  // 조금만 끌면 제자리로
+  const box = (await page.locator('.sheet').boundingBox())!;
+  await touch('touchStart', box.x + 100, box.y + 60);
+  for (let i = 1; i <= 3; i++) await touch('touchMove', box.x + 100, box.y + 60 + i * 15);
+  await touch('touchEnd');
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
+  await pullDown();
+  await page.getByTestId('close-ok').click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  // 바깥(어두운 부분) 누르기
+  await page.getByTestId('nav-bookings').click();
+  await page.getByTestId('add-booking').click();
+  await page.mouse.click(195, 30);
+  await expect(page.getByRole('alertdialog')).toBeVisible();
+  await page.getByTestId('close-ok').click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await cdp.detach();
+});

@@ -3,10 +3,20 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
 // GitHub Pages 하위 경로(https://<계정>.github.io/<저장소>/)에서도 동작하도록 상대 경로(base './') + HashRouter 사용
+// 빌드마다 고유 번호 → version.json 과 비교해 새 버전이면 자동 교체 (아이폰 홈 화면 앱은 스스로 잘 갱신하지 않음)
+const BUILD_ID = new Date().toISOString();
+
 export default defineConfig(({ mode }) => ({
   base: './',
+  define: { __BUILD_ID__: JSON.stringify(BUILD_ID) },
   plugins: [
     react(),
+    {
+      name: 'travely-version-json',
+      generateBundle() {
+        this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ build: BUILD_ID }) });
+      },
+    },
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: false,
