@@ -13,7 +13,22 @@ async function openTrip(page: Page, name: string, past = false) {
   await page.getByTestId('trip-card').filter({ hasText: name }).click();
   await expect(page.getByTestId('trip-title')).toHaveText(name);
 }
-const noOverflow = async (page: Page) => expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+/** 가로 넘침 없음: 문서 폭 + (잘려서 안 보이는 것까지) 화면 오른쪽 밖으로 나간 요소 검사. 가로 스크롤 줄·지도는 제외 */
+const noOverflow = async (page: Page) => {
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+  const out = await page.evaluate(() => {
+    const W = window.innerWidth;
+    const skip = (el: Element) => !!el.closest('.chips, .leaflet-container, .h-scroll, .viewer .stage');
+    return [...document.querySelectorAll<HTMLElement>('body *')]
+      .filter((el) => {
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && r.height > 0 && (r.right > W + 1 || r.left < -1) && !skip(el) && getComputedStyle(el).visibility !== 'hidden';
+      })
+      .slice(0, 5)
+      .map((el) => `${el.tagName.toLowerCase()}.${String(el.className).slice(0, 40)} ${Math.round(el.getBoundingClientRect().left)}~${Math.round(el.getBoundingClientRect().right)}`);
+  });
+  expect(out, '화면 밖으로 나간 요소').toEqual([]);
+};
 const names = (page: Page, date: string) => page.getByTestId(`tl-${date}`).getByTestId('item-name').allTextContents();
 const nums = (page: Page, date: string) => page.getByTestId(`tl-${date}`).getByTestId('num').allTextContents();
 
@@ -387,9 +402,72 @@ for (const w of [320, 390]) {
       await noOverflow(page);
       await page.screenshot({ path: `test-results/ui-${t}-${w}.png`, fullPage: true });
     }
+    // 모든 입력 창(시트)도: 화면·시트 가로 넘침 없음 + 입력칸 글자 16px 이상(아이폰 자동 확대 방지)
+    const sheetOk = async (name: string) => {
+      await expect(page.getByRole('dialog').last()).toBeVisible();
+      await page.waitForTimeout(250);
+      await noOverflow(page);
+      const r = await page.evaluate(() => {
+        const sheets = [...document.querySelectorAll<HTMLElement>('.sheet')];
+        const over = sheets.map((el) => el.scrollWidth - el.clientWidth);
+        const small = [...document.querySelectorAll<HTMLElement>('input:not([type=checkbox]):not([type=file]):not([type=radio]), select, textarea')]
+          .filter((el) => el.offsetParent !== null && parseFloat(getComputedStyle(el).fontSize) < 16).map((el) => el.id || el.className);
+        return { over: Math.max(0, ...over), small };
+      });
+      expect(r.over, `${name} 시트 가로 넘침`).toBeLessThanOrEqual(0);
+      expect(r.small, `${name} 16px 미만 입력칸`).toEqual([]);
+      await page.screenshot({ path: `test-results/ui-sheet-${name}-${w}.png` });
+    };
+    const close = async () => {
+      await page.keyboard.press('Escape');
+      await expect(page.getByRole('dialog')).toHaveCount(0);
+    };
     await page.getByTestId('nav-plan').click();
     await page.getByTestId('add-item').click();
-    await noOverflow(page);
-    await page.screenshot({ path: `test-results/ui-itemsheet-${w}.png` });
+    await sheetOk('item');
+    await close();
+    await page.getByTestId('open-import').click();
+    await sheetOk('import');
+    await close();
+    await page.getByTestId('leg').first().click();
+    await sheetOk('leg');
+    await close();
+    await page.getByTestId('nav-bookings').click();
+    await page.getByTestId('add-booking').click();
+    await sheetOk('booking');
+    await close();
+    await page.getByTestId('nav-ledger').click();
+    await page.getByTestId('add-expense').click();
+    await sheetOk('expense');
+    await close();
+    await page.getByTestId('share-btn').click();
+    await sheetOk('share');
+    await page.getByTestId('edit-trip').click();
+    await sheetOk('trip');
   });
 }
+
+test('JSON 일정 가져오기: 붙여넣기 → 미리보기 → 날짜별 추가·이동 정보·후보', async ({ page }) => {
+  await openTrip(page, '칭다오 · 옌타이');
+  const before = await names(page, '2026-11-09');
+  await page.getByTestId('open-import').click();
+  await page.locator('#import-text').fill('{ "days": [ { "date": "2026-11-09", "items": [');
+  await expect(page.getByTestId('import-error')).toContainText('JSON 형식이 아니에요');
+  const json = {
+    days: [
+      { date: '2026-11-09', items: [
+        { time: '20:00', name: '타이동 야시장', category: 'food', memo: '꼬치', checklist: ['현금'], moveToNext: { mode: 'taxi', minutes: 12, fare: 20, currency: 'CNY' } },
+        { time: '21:30', name: '호텔 복귀', category: 'stay' },
+      ] },
+      { date: '2026-11-20', items: [{ name: '기간 밖 장소' }] },
+    ],
+  };
+  await page.locator('#import-text').fill('```json\n' + JSON.stringify(json) + '\n```');
+  await expect(page.getByTestId('import-preview')).toContainText('타이동 야시장');
+  await expect(page.getByTestId('import-preview')).toContainText('후보');
+  await page.getByTestId('import-run').click();
+  await expect(page.getByRole('dialog')).toHaveCount(0, { timeout: 10_000 });
+  await expect.poll(() => names(page, '2026-11-09')).toEqual([...before, '타이동 야시장', '호텔 복귀']);
+  await expect(page.getByTestId('tl-2026-11-09')).toContainText('🚕 택시 · 약 12분');
+  await expect(page.getByTestId('cands')).toContainText('기간 밖 장소');
+});

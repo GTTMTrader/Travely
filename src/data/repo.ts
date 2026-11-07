@@ -731,3 +731,56 @@ export function watchInvites(tripId: string, cb: (inv: Invite[]) => void): Unsub
 
 export const tripPaths = P;
 export type { FlightInfo };
+
+// ───────── JSON 일정 가져오기 ─────────
+/**
+ * 가져온 일정을 날짜별로 기존 일정 뒤에 붙인다. 날짜마다 한 묶음(batch)으로 저장해
+ * 상대 화면에는 한 날짜씩 통째로 나타난다. 이동 정보는 같은 날 앞뒤 '장소' 사이에만 만든다.
+ */
+export async function importPlanItems(tripId: string, uid: string, plan: import('../lib/importPlan').ImportPlan, byDay: Map<string | null, Item[]>, days: Day[]) {
+  return track('일정 가져오는 중', async () => {
+    let added = 0;
+    for (const d of plan.days) {
+      const existing = byDay.get(d.dayId) ?? [];
+      let order = orderAtEnd(existing);
+      const ops: Op[] = [];
+      const placed: { id: string; it: (typeof d.items)[number] }[] = [];
+      for (const it of d.items) {
+        const id = store.newId();
+        ops.push({
+          type: 'set',
+          path: P.doc(tripId, 'items', id),
+          data: {
+            ...blankItem(uid), id, dayId: d.dayId, order,
+            kind: it.kind, category: it.category, tag: it.tag, time: it.time, memo: it.memo, place: it.place, bookingIds: [], checklist: it.checklist,
+          },
+        });
+        order += 1000;
+        placed.push({ id, it });
+      }
+      if (d.dayId) {
+        const places = placed.filter((p) => p.it.kind === 'place');
+        for (let i = 0; i < places.length - 1; i++) {
+          const leg = places[i].it.legToNext ?? places[i + 1].it.legFromPrev;
+          if (!leg) continue;
+          const fromId = places[i].id;
+          const toId = places[i + 1].id;
+          ops.push({
+            type: 'set',
+            path: P.doc(tripId, 'legs', legId(fromId, toId)),
+            data: {
+              id: legId(fromId, toId), fromId, toId, mode: leg.mode, durationMin: leg.durationMin, distanceM: leg.distanceM,
+              fareAmount: leg.fareAmount, fareCurrency: leg.fareCurrency, memo: leg.memo, source: 'manual',
+              geometry: null, routedAt: null, routedFrom: null, routedTo: null, version: 1, updatedBy: uid, updatedAt: SERVER_TIME,
+            },
+          });
+        }
+        const day = days.find((x) => x.date === d.dayId);
+        if (d.city && day && !day.city) ops.push({ type: 'update', path: P.doc(tripId, 'days', d.dayId), data: { city: d.city } });
+      }
+      await store.batch(ops);
+      added += d.items.length;
+    }
+    return added;
+  });
+}

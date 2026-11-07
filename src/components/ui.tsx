@@ -63,16 +63,35 @@ export function Icon({ name, size = 22, stroke = 1.9 }: { name: IconName; size?:
   );
 }
 
+// ───────── 뒤 화면 스크롤 고정 (iOS 는 overflow:hidden 만으로는 뒤가 움직이고 옆으로 밀림) ─────────
+let locks = 0;
+let savedY = 0;
+export function lockScroll() {
+  if (locks++ > 0) return;
+  savedY = window.scrollY;
+  const b = document.body.style;
+  b.position = 'fixed';
+  b.top = `-${savedY}px`;
+  b.left = '0';
+  b.right = '0';
+  b.overflow = 'hidden';
+}
+export function unlockScroll() {
+  if (locks === 0 || --locks > 0) return;
+  const b = document.body.style;
+  b.position = b.top = b.left = b.right = b.overflow = '';
+  window.scrollTo(0, savedY);
+}
+
 // ───────── 바텀시트 ─────────
 export function Sheet({ onClose, children, label, wide }: { onClose: () => void; children: ReactNode; label: string; wide?: boolean }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    lockScroll();
     return () => {
       window.removeEventListener('keydown', onKey);
-      document.body.style.overflow = prev;
+      unlockScroll();
     };
   }, [onClose]);
   return (

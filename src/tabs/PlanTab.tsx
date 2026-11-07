@@ -13,6 +13,7 @@ import { Icon, Sheet, dayColor } from '../components/ui';
 import ItemSheet from '../sheets/ItemSheet';
 import LegSheet from '../sheets/LegSheet';
 import BookingViewer from '../sheets/BookingViewer';
+import ImportSheet from '../sheets/ImportSheet';
 
 type Open =
   | { t: 'item'; item?: Item; day: string | null }
@@ -20,6 +21,7 @@ type Open =
   | { t: 'booking'; id: string }
   | { t: 'city'; date: string }
   | { t: 'cand'; item: Item }
+  | { t: 'import' }
   | null;
 
 function readMode(): 'list' | 'map' {
@@ -152,6 +154,11 @@ export default function PlanTab() {
               </div>
             )}
           </section>
+          {c.editable && (
+            <button className="btn ghost block" style={{ margin: '18px 0 4px' }} onClick={() => setOpen({ t: 'import' })} data-testid="open-import">
+              <Icon name="download" size={18} /> JSON 일정 가져오기 (GPT로 짠 일정)
+            </button>
+          )}
         </>
       )}
 
@@ -212,6 +219,7 @@ export default function PlanTab() {
       {open?.t === 'item' && <ItemSheet key={open.item?.id ?? 'new'} item={open.item} defaultDay={open.day} onClose={() => setOpen(null)} />}
       {open?.t === 'leg' && <LegSheet from={open.a} to={open.b} onClose={() => setOpen(null)} />}
       {open?.t === 'booking' && <BookingViewer bookingId={open.id} onClose={() => setOpen(null)} />}
+      {open?.t === 'import' && <ImportSheet onClose={() => setOpen(null)} />}
       {open?.t === 'city' && <CitySheet date={open.date} onClose={() => setOpen(null)} />}
       {open?.t === 'cand' && (
         <Sheet onClose={() => setOpen(null)} label="일정에 추가">

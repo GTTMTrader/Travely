@@ -4,7 +4,7 @@ import type { FileMeta } from '../lib/types';
 import { BOOKING_LABEL } from '../lib/types';
 import { getFileBlob } from '../lib/files';
 import { flightMinutes, formatMinutes, shortDateDow, tzLabel } from '../lib/time';
-import { copyText, Icon } from '../components/ui';
+import { copyText, Icon, lockScroll, unlockScroll } from '../components/ui';
 import ZoomView from '../components/ZoomView';
 import BookingSheet from './BookingSheet';
 
@@ -42,6 +42,10 @@ export default function BookingViewer({ bookingId, onClose }: { bookingId: strin
   const [idx, setIdx] = useState(0);
   const [edit, setEdit] = useState(false);
   const fileKey = files.map((f) => `${f.id}:${f.complete}`).join(',');
+  useEffect(() => {
+    lockScroll();
+    return () => unlockScroll();
+  }, []);
 
   useEffect(() => {
     let alive = true;
