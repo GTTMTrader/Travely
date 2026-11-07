@@ -173,6 +173,9 @@ a { color: var(--primary); }
 .tl-num.memo { width: 12px; height: 12px; margin-top: 14px; }
 .tl-card { touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; position: relative; background: var(--surface-2); border-radius: var(--radius); padding: 16px 48px 16px 18px; margin-bottom: 10px; border: 2px solid transparent; text-align: left; width: 100%; display: block; color: inherit; }
 .tl-card.sel { border-color: var(--primary-2); }
+.tl-card.is-now { border-color: var(--primary); box-shadow: 0 6px 18px rgba(109, 61, 242, 0.18); }
+.now-pill { position: absolute; top: -9px; right: 14px; background: var(--primary); color: #fff; font-size: 11.5px; font-weight: 800; padding: 2px 9px; border-radius: 999px; box-shadow: 0 3px 8px rgba(109, 61, 242, 0.3); animation: nowPulse 2.4s ease-in-out infinite; }
+@keyframes nowPulse { 0%, 100% { box-shadow: 0 3px 8px rgba(109, 61, 242, 0.3); } 50% { box-shadow: 0 3px 14px rgba(109, 61, 242, 0.6); } }
 .tl-card.memo { background: transparent; border: 1.5px dashed #ddd7ee; padding: 12px 16px; }
 .tl-card.flight { background: linear-gradient(135deg, #f3efff, #eef4ff); }
 .tl-card .cat { font-size: 13px; color: var(--ink-2); font-weight: 600; }

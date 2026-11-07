@@ -130,3 +130,17 @@ export function nowHHMM(now = new Date()): string {
   const p = (n: number) => String(n).padStart(2, '0');
   return `${p(now.getHours())}:${p(now.getMinutes())}`;
 }
+
+/** 여행지 시간대 기준 지금 날짜·시각 */
+export function nowInZone(tz: string, now = new Date()): { date: string; hhmm: string } {
+  try {
+    const parts = Object.fromEntries(
+      new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+        .formatToParts(now)
+        .map((p) => [p.type, p.value]),
+    );
+    return { date: `${parts.year}-${parts.month}-${parts.day}`, hhmm: `${parts.hour === '24' ? '00' : parts.hour}:${parts.minute}` };
+  } catch {
+    return { date: todayLocal(now), hhmm: nowHHMM(now) };
+  }
+}

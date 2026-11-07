@@ -23,7 +23,7 @@ export interface TimelineHandlers {
   onToggleCheck: (itemId: string, entryId: string) => void;
 }
 
-function ItemCard({ item, num, color, selected, prevPlace, h }: { item: Item; num?: number; color: string; selected: boolean; prevPlace: Item | null; h: TimelineHandlers }) {
+function ItemCard({ item, num, color, selected, prevPlace, h, now }: { item: Item; num?: number; color: string; selected: boolean; prevPlace: Item | null; h: TimelineHandlers; now?: 'now' | 'next' }) {
   const c = useTripCtx();
   const sortable = useSortable({ id: item.id, disabled: !c.editable });
   const style = { transform: CSS.Transform.toString(sortable.transform), transition: sortable.transition };
@@ -56,11 +56,12 @@ function ItemCard({ item, num, color, selected, prevPlace, h }: { item: Item; nu
         <div
           {...sortable.attributes} {...sortable.listeners}
           role="button" tabIndex={0}
-          className={`tl-card ${item.kind} ${selected ? 'sel' : ''}`}
+          className={`tl-card ${item.kind} ${selected ? 'sel' : ''} ${now ? 'is-now' : ''}`}
           onClick={() => { if (justDragged()) return; if (item.kind === 'flight' && item.bookingIds[0]) h.onOpenBooking(item.bookingIds[0]); else h.onOpenItem(item); }}
           onKeyDown={(e) => e.key === 'Enter' && h.onOpenItem(item)}
           aria-roledescription="길게 눌러 순서 변경"
         >
+          {now && <span className="now-pill" data-testid="now-pill">{now === 'now' ? '지금' : '다음 일정'}</span>}
           {item.kind === 'place' && item.place && (
             <>
               <div className="cat">
@@ -112,7 +113,7 @@ function ItemCard({ item, num, color, selected, prevPlace, h }: { item: Item; nu
   );
 }
 
-export function DayTimeline({ day, items, selectedId, h }: { day: Day; items: Item[]; selectedId: string | null; h: TimelineHandlers }) {
+export function DayTimeline({ day, items, selectedId, h, nowMark }: { day: Day; items: Item[]; selectedId: string | null; h: TimelineHandlers; nowMark?: { id: string; state: 'now' | 'next' } | null }) {
   const c = useTripCtx();
   const color = dayColor(day.index).main;
   const [optimistic, setOptimistic] = useState<string[] | null>(null);
@@ -155,7 +156,7 @@ export function DayTimeline({ day, items, selectedId, h }: { day: Day; items: It
           {shown.map((it) => {
             const p = it.kind === 'place' ? prev : null;
             if (it.kind === 'place') prev = it;
-            return <ItemCard key={it.id} item={it} num={nums.get(it.id)} color={color} selected={selectedId === it.id} prevPlace={p} h={h} />;
+            return <ItemCard key={it.id} item={it} num={nums.get(it.id)} color={color} selected={selectedId === it.id} prevPlace={p} h={h} now={nowMark?.id === it.id ? nowMark.state : undefined} />;
           })}
         </div>
       </SortableContext>

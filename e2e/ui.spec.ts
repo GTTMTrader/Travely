@@ -510,3 +510,35 @@ test('창 끌어내리기 → "창을 닫을까요?" 확인/취소, 바깥 누�
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await cdp.detach();
 });
+
+test('여행 중 앱을 열면 지금 시간 일정으로 부드럽게 이동 + "지금" 표시', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-11-09T04:05:00Z')); // 중국 시간 11/9 12:05
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openTrip(page, '칭다오 · 옌타이');
+  const pill = page.getByTestId('now-pill');
+  await expect(pill).toHaveCount(1);
+  await expect(pill).toHaveText('지금');
+  // 처음엔 맨 위 → 자동으로 미끄러져 내려감
+  await expect.poll(() => page.evaluate(() => window.scrollY), { timeout: 4000 }).toBeGreaterThan(300);
+  await page.waitForTimeout(1200);
+  const box = await pill.boundingBox();
+  expect(box!.y).toBeGreaterThan(100);
+  expect(box!.y).toBeLessThan(500); // 머리말 바로 아래쯤
+  await page.screenshot({ path: 'test-results/ui-now-390.png' });
+  const card = page.getByTestId('tl-item').filter({ has: pill });
+  const t = await card.locator('.tl-time').textContent();
+  expect(t! <= '12:05').toBe(true);
+  // 위로 올렸다가 '지금' 버튼으로 다시
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.getByTestId('go-now').click();
+  await expect.poll(() => page.evaluate(() => window.scrollY), { timeout: 3000 }).toBeGreaterThan(300);
+});
+
+test('여행 기간이 아니면 자동 이동·지금 표시 없음', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-11-07T04:00:00Z'));
+  await openTrip(page, '칭다오 · 옌타이');
+  await page.waitForTimeout(1500);
+  await expect(page.getByTestId('now-pill')).toHaveCount(0);
+  await expect(page.getByTestId('go-now')).toHaveCount(0);
+  expect(await page.evaluate(() => window.scrollY)).toBeLessThan(10);
+});

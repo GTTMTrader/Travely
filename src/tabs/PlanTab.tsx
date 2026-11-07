@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTripCtx } from '../pages/TripLayout';
 import { moveToDay, moveWithinDay, setDayCity, toggleCheck } from '../data/repo';
 import type { Item } from '../lib/types';
@@ -6,7 +6,8 @@ import { CATEGORY_LABEL } from '../lib/types';
 import { numberPlaces } from '../lib/order';
 import { legSummary } from '../lib/legs';
 import { fetchWeather, weatherIcon, type DayWeather } from '../lib/weather';
-import { shortDateDow } from '../lib/time';
+import { nowInZone, shortDateDow } from '../lib/time';
+import { findNowTarget, glideTo, targetY } from '../lib/nowTarget';
 import { DayTimeline, type TimelineHandlers } from '../components/Timeline';
 import MapView, { type MapSel } from '../components/MapView';
 import { Icon, Sheet, dayColor } from '../components/ui';
@@ -14,6 +15,9 @@ import ItemSheet from '../sheets/ItemSheet';
 import LegSheet from '../sheets/LegSheet';
 import BookingViewer from '../sheets/BookingViewer';
 import ImportSheet from '../sheets/ImportSheet';
+
+/** 여행별 마지막 자동 이동 시각 (앱을 새로 열면 초기화) */
+const autoAt = new Map<string, number>();
 
 type Open =
   | { t: 'item'; item?: Item; day: string | null }
@@ -85,6 +89,51 @@ export default function PlanTab() {
     onToggleCheck: (itemId, entryId) => void toggleCheck(c.tripId, c.user.uid, itemId, entryId).catch(() => undefined),
   };
   const cands = c.byDay.get(null) ?? [];
+
+  // ── 지금 시간 일정으로 부드럽게 이동 (여행 중일 때) ──
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setTick((x) => x + 1), 60_000);
+    return () => clearInterval(t);
+  }, []);
+  const nowT = useMemo(() => {
+    const n = nowInZone(c.bundle.trip.timezone);
+    return findNowTarget(c.bundle.days, c.byDay, n.date, n.hhmm);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [c.bundle.days, c.byDay, c.bundle.trip.timezone, tick]);
+  const nowMark = nowT?.itemId && nowT.state !== 'day' ? { id: nowT.itemId, state: nowT.state } : null;
+  const goNow = () => {
+    if (!nowT) return;
+    const y = targetY(nowT);
+    if (y != null) glideTo(y);
+  };
+  const hasNow = !!nowT;
+  useEffect(() => {
+    if (mode !== 'list' || !hasNow) return;
+    let cancel: (() => void) | undefined;
+    const run = () => {
+      const last = autoAt.get(c.tripId) ?? 0;
+      if (Date.now() - last < 30 * 60_000) return; // 30분 안에 다시 들어오면 그대로 (탭 왔다 갔다 할 때 방해 안 되게)
+      if (window.scrollY > 80) return; // 이미 직접 내려 본 상태면 건드리지 않음
+      const t = setTimeout(() => {
+        if (window.scrollY > 80) return;
+        autoAt.set(c.tripId, Date.now());
+        const n = nowInZone(c.bundle.trip.timezone);
+        const target = findNowTarget(c.bundle.days, c.byDay, n.date, n.hhmm);
+        const y = target && targetY(target);
+        if (y != null) cancel = glideTo(y, 950);
+      }, 450);
+      cancel = () => clearTimeout(t);
+    };
+    run();
+    const onVis = () => document.visibilityState === 'visible' && run();
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+      cancel?.();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, hasNow, c.tripId]);
   const jump = (date: string) => document.getElementById(`day-${date}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   // 지도 아래 카드: 선택한 장소 / 구간
@@ -113,6 +162,7 @@ export default function PlanTab() {
                 </button>
               ))}
               {cands.length > 0 && <button className="chip" style={{ minHeight: 34, padding: '4px 12px' }} onClick={() => jump('cand')}>후보 {cands.length}</button>}
+              {hasNow && <button className="chip" style={{ minHeight: 34, padding: '4px 12px', background: 'var(--primary)', color: '#fff' }} onClick={goNow} data-testid="go-now">● 지금</button>}
             </div>
           )}
           {c.bundle.days.map((d) => {
@@ -127,7 +177,7 @@ export default function PlanTab() {
                   </button>
                   {w && <span className="wx" title="Open-Meteo 예보">{weatherIcon(w.code)} {w.tMin}° / {w.tMax}°</span>}
                 </div>
-                <DayTimeline day={d} items={c.byDay.get(d.date) ?? []} selectedId={sel.itemId} h={h} />
+                <DayTimeline day={d} items={c.byDay.get(d.date) ?? []} selectedId={sel.itemId} h={h} nowMark={nowT?.dayId === d.date ? nowMark : null} />
               </section>
             );
           })}
