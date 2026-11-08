@@ -737,13 +737,32 @@ export type { FlightInfo };
  * 가져온 일정을 날짜별로 기존 일정 뒤에 붙인다. 날짜마다 한 묶음(batch)으로 저장해
  * 상대 화면에는 한 날짜씩 통째로 나타난다. 이동 정보는 같은 날 앞뒤 '장소' 사이에만 만든다.
  */
-export async function importPlanItems(tripId: string, uid: string, plan: import('../lib/importPlan').ImportPlan, byDay: Map<string | null, Item[]>, days: Day[]) {
-  return track('일정 가져오는 중', async () => {
+/** 교체 모드에서 지워질 기존 일정 (JSON 에 들어 있는 날짜만, 항공편 카드는 예약과 연결돼 있어 남김) */
+export function replaceTargets(plan: import('../lib/importPlan').ImportPlan, byDay: Map<string | null, Item[]>): Item[] {
+  return plan.days.flatMap((d) => (byDay.get(d.dayId) ?? []).filter((i) => i.kind !== 'flight'));
+}
+
+export async function importPlanItems(
+  tripId: string,
+  uid: string,
+  plan: import('../lib/importPlan').ImportPlan,
+  byDay: Map<string | null, Item[]>,
+  days: Day[],
+  opts: { replace?: boolean; legs?: Map<string, Leg> } = {},
+) {
+  return track(opts.replace ? '일정 바꾸는 중' : '일정 가져오는 중', async () => {
     let added = 0;
     for (const d of plan.days) {
-      const existing = byDay.get(d.dayId) ?? [];
-      let order = orderAtEnd(existing);
       const ops: Op[] = [];
+      let existing = byDay.get(d.dayId) ?? [];
+      if (opts.replace) {
+        // 같은 묶음 안에서 지우고 새로 넣어 상대 화면에 '빈 날짜'가 잠깐도 보이지 않게
+        const gone = new Set(existing.filter((i) => i.kind !== 'flight').map((i) => i.id));
+        for (const id of gone) ops.push({ type: 'delete', path: P.doc(tripId, 'items', id) });
+        for (const l of opts.legs?.values() ?? []) if (gone.has(l.fromId) || gone.has(l.toId)) ops.push({ type: 'delete', path: P.doc(tripId, 'legs', l.id) });
+        existing = existing.filter((i) => !gone.has(i.id));
+      }
+      let order = orderAtEnd(existing);
       const placed: { id: string; it: (typeof d.items)[number] }[] = [];
       for (const it of d.items) {
         const id = store.newId();

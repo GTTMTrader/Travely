@@ -576,3 +576,27 @@ test('추억 앨범: 사진 고르기 → PDF + 날짜별 이미지 만들기 �
   await expect.poll(() => imgs.length, { timeout: 10_000 }).toBe(4);
   await Promise.all(imgs);
 });
+
+test('JSON 가져오기 "지우고 새로 넣기": 해당 날짜만 교체, 다른 날짜는 그대로', async ({ page }) => {
+  await openTrip(page, '칭다오 · 옌타이');
+  const day1 = await names(page, '2026-11-08');
+  const day3 = await names(page, '2026-11-10');
+  expect((await names(page, '2026-11-09')).length).toBeGreaterThan(3);
+  await page.getByTestId('open-import').click();
+  await page.getByTestId('import-mode-replace').click();
+  await page.locator('#import-text').fill(JSON.stringify({ days: [{ date: '2026-11-09', items: [
+    { time: '10:00', name: '새 일정 A', moveToNext: { mode: 'walk', minutes: 7 } },
+    { time: '12:00', name: '새 일정 B' },
+  ] }] }));
+  await expect(page.getByTestId('replace-warning')).toContainText('DAY 2');
+  const run = page.getByTestId('import-run');
+  await expect(run).toContainText('지우고 2개로 바꾸기');
+  await run.click();
+  await expect(run).toContainText('정말 바꿀까요');
+  await run.click();
+  await expect(page.getByRole('dialog')).toHaveCount(0, { timeout: 10_000 });
+  await expect.poll(() => names(page, '2026-11-09')).toEqual(['새 일정 A', '새 일정 B']);
+  await expect(page.getByTestId('tl-2026-11-09')).toContainText('🚶 도보 · 약 7분');
+  expect(await names(page, '2026-11-08')).toEqual(day1);
+  expect(await names(page, '2026-11-10')).toEqual(day3);
+});
