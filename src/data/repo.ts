@@ -823,3 +823,12 @@ export async function importPlanItems(
     return added;
   });
 }
+
+/** 결제 캡처에서 만든 지출 여러 건 한 번에 추가 (한 묶음 = 상대 화면에 한꺼번에 나타남) */
+export const addExpenses = (tripId: string, uid: string, list: ExpenseInput[]) =>
+  track(`지출 ${list.length}건 추가 중`, () =>
+    store.batch(list.map((data) => {
+      const id = store.newId();
+      return { type: 'set' as const, path: P.doc(tripId, 'expenses', id), data: { ...data, id, createdBy: uid, createdAt: SERVER_TIME, updatedBy: uid, updatedAt: SERVER_TIME, version: 1 } };
+    })).then(() => list.length),
+  );

@@ -339,3 +339,5 @@ a { color: var(--primary); }
 .al-thumb button { position: absolute; top: 4px; right: 4px; width: 26px; height: 26px; border-radius: 50%; border: 0; background: rgba(20, 14, 40, 0.6); color: #fff; font-size: 17px; line-height: 1; padding: 0; }
 .al-add { aspect-ratio: 1; border-radius: 12px; border: 1.5px dashed var(--line-2, #d9d3ea); background: var(--surface); color: var(--ink-2); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 13px; font-weight: 700; padding: 0; }
 .album-btn { background: #fff4ee; border-color: #f6cdbb; color: #c2552f; }
+
+.todo-title { color: #b7791f; background: #fff6e0; border-radius: 8px; padding: 1px 8px; font-size: 14.5px; }

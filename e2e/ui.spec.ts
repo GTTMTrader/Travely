@@ -640,3 +640,36 @@ test('JSON 가져오기 "지우고 새로 넣기": 해당 날짜만 교체, 다�
   expect(await names(page, '2026-11-08')).toEqual(day1);
   expect(await names(page, '2026-11-10')).toEqual(day3);
 });
+
+test('지출 한 번에 가져오기: 파일 → 결제자·정산 기본값 → 추가 → 중복 건너뜀 → 이름 나중에 입력', async ({ page }) => {
+  await openTrip(page, '칭다오 · 옌타이');
+  await page.getByTestId('nav-ledger').click();
+  await expect(page.getByTestId('total')).toBeVisible();
+  await page.waitForTimeout(400); // 목록 다 그려진 뒤 개수 세기
+  const before = await page.getByTestId('expense').count();
+  await page.getByTestId('exp-import').click();
+  await page.getByTestId('exp-import-file').setInputFiles('e2e/fixtures/expenses.json');
+  await expect(page.getByTestId('exp-import-preview')).toContainText('瑞幸咖啡');
+  await expect(page.getByTestId('exp-import-payer-other')).toHaveClass(/on/); // 파일 기본값: 상대가 결제
+  await expect(page.getByTestId('exp-import-split-equal')).toHaveClass(/on/);
+  await page.getByTestId('exp-import-rate-CNY').fill('190');
+  await page.getByTestId('exp-import-run').click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByTestId('expense')).toHaveCount(before + 3);
+  await expect(page.locator('.todo-title')).toHaveCount(3);
+  const row = page.locator('.exp-wrap', { hasText: '128.50' });
+  await expect(row).toContainText('위챗');
+  await expect(row).toContainText('균등');
+  // 같은 파일 다시 → 모두 중복
+  await page.getByTestId('exp-import').click();
+  await page.getByTestId('exp-import-file').setInputFiles('e2e/fixtures/expenses.json');
+  await expect(page.getByTestId('exp-import-preview')).toContainText('추가할 새 지출이 없어요');
+  await expect(page.getByTestId('exp-import-run')).toBeDisabled();
+  await page.keyboard.press('Escape');
+  // 이름 적기: 칸이 비어 있음
+  await page.locator('.exp-wrap', { hasText: '128.50' }).getByTestId('expense').click();
+  await expect(page.locator('#exp-title')).toHaveValue('');
+  await page.locator('#exp-title').fill('하이디라오 저녁');
+  await page.getByTestId('save-expense').click();
+  await expect(page.locator('.todo-title')).toHaveCount(2);
+});

@@ -8,6 +8,7 @@ import { getKrwRate, type FxRate } from '../lib/fx';
 import { ConflictError, describeError } from '../lib/saveStatus';
 import { nowHHMM, shortDateDow, todayLocal } from '../lib/time';
 import { ConfirmButton, Sheet } from '../components/ui';
+import { TITLE_TODO } from '../lib/importExpenses';
 
 export const EXPENSE_ICON: Record<ExpenseCategory, string> = { stay: '🛏️', food: '🍴', cafe: '☕', transport: '🚕', ticket: '🎫', shop: '🛍️', etc: '🧾' };
 const PLATFORMS = ['현장 결제', '트립닷컴', '클룩', '마이리얼트립', '아고다', '네이버', '디디(택시)', '항공사'];
@@ -45,7 +46,7 @@ export default function ExpenseSheet({ expense, onClose }: { expense?: Expense; 
   const today = todayLocal();
   const inTrip = c.bundle.days.some((d) => d.date === today);
 
-  const [title, setTitle] = useState(expense?.title ?? '');
+  const [title, setTitle] = useState(expense?.title === TITLE_TODO ? '' : expense?.title ?? ''); // 가져온 지출은 이름 칸을 비워서 바로 입력
   const [date, setDate] = useState<string | null>(expense ? expense.date : inTrip ? today : c.bundle.days[0]?.date ?? null);
   const [time, setTime] = useState(expense?.time ?? (inTrip ? nowHHMM() : ''));
   const [category, setCategory] = useState<ExpenseCategory>(expense?.category ?? 'food');

@@ -9,6 +9,8 @@ import { ConfirmButton, Icon, Sheet, toast } from '../components/ui';
 import { setExpensesSettled } from '../data/repo';
 import { describeError } from '../lib/saveStatus';
 import ExpenseSheet, { EXPENSE_ICON } from '../sheets/ExpenseSheet';
+import ExpenseImportSheet from '../sheets/ExpenseImportSheet';
+import { TITLE_TODO } from '../lib/importExpenses';
 
 /** 환율 계산기: 여행 기본 통화 ↔ 원 양방향 */
 function FxSheet({ onClose }: { onClose: () => void }) {
@@ -75,6 +77,7 @@ export default function LedgerTab() {
   const [tab, setTab] = useState<'list' | 'settle'>('list');
   const [edit, setEdit] = useState<Expense | 'new' | null>(null);
   const [fx, setFx] = useState(false);
+  const [bulk, setBulk] = useState(false);
   const [fDay, setFDay] = useState<string>('all');
   const [fPayer, setFPayer] = useState<string>('all');
   const [fMethod, setFMethod] = useState<'all' | PayMethod>('all');
@@ -113,7 +116,10 @@ export default function LedgerTab() {
     <div className="t-body">
       <div className="row between" style={{ margin: '10px 0 14px' }}>
         <h2 style={{ fontSize: 28, margin: 0, letterSpacing: '-0.03em' }}>공동 가계부</h2>
-        <button className="btn soft sm" onClick={() => setFx(true)} data-testid="fx"><Icon name="swap" size={18} /> 환율 계산</button>
+        <div className="row" style={{ gap: 6 }}>
+          {c.editable && <button className="btn soft sm" onClick={() => setBulk(true)} data-testid="exp-import"><Icon name="download" size={18} /> 한 번에</button>}
+          <button className="btn soft sm" onClick={() => setFx(true)} data-testid="fx"><Icon name="swap" size={18} /> 환율</button>
+        </div>
       </div>
 
       <div className="hero">
@@ -187,7 +193,7 @@ export default function LedgerTab() {
                   <div key={e.id} className={`exp-wrap ${st ? 'settled' : ''}`}>
                   <button className="exp-card" onClick={() => setEdit(e)} data-testid="expense">
                     <span className="exp-ico">{EXPENSE_ICON[e.category]}</span>
-                    <span className="t ellipsis">{e.title}</span>
+                    <span className="t ellipsis">{e.title === TITLE_TODO ? <span className="todo-title">✏️ 내용 입력 필요</span> : e.title}</span>
                     <span className="amt">{e.currency === 'KRW' ? formatKrw(e.amount) : formatMoney(e.amount, e.currency)}</span>
                     <span className="m">
                       {payerIds.map(name).join('·')} 결제 · {PAY_METHOD_LABEL[e.method]}{e.cardName ? `(${e.cardName})` : ''}{e.platform ? ` · ${e.platform}` : ''}
@@ -254,6 +260,7 @@ export default function LedgerTab() {
       {c.editable && <button className="fab" onClick={() => setEdit('new')} data-testid="add-expense"><Icon name="plus" /> 지출 추가</button>}
       {edit && <ExpenseSheet expense={edit === 'new' ? undefined : edit} onClose={() => setEdit(null)} />}
       {fx && <FxSheet onClose={() => setFx(false)} />}
+      {bulk && <ExpenseImportSheet onClose={() => setBulk(false)} />}
     </div>
   );
 }
