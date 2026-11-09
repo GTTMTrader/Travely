@@ -100,8 +100,9 @@ export default function LedgerTab() {
     (fPayer === 'all' || (e.payers[fPayer] ?? 0) > 0) &&
     (fMethod === 'all' || e.method === fMethod) &&
     (fCat === 'all' || e.category === fCat));
-  const groups = [null, ...c.bundle.days.map((d) => d.date)]
-    .map((d) => ({ d, items: list.filter((e) => (e.date ?? null) === d).sort((a, b) => (a.time ?? '').localeCompare(b.time ?? '')) }))
+  // 최신이 위로: 마지막 날짜부터, 같은 날은 늦은 시간부터, '여행 전/날짜 없음'은 맨 아래
+  const groups = [...c.bundle.days.map((d) => d.date).reverse(), null]
+    .map((d) => ({ d, items: list.filter((e) => (e.date ?? null) === d).sort((a, b) => (b.time ?? '').localeCompare(a.time ?? '')) }))
     .filter((g) => g.items.length);
   const filtered = fDay !== 'all' || fPayer !== 'all' || fMethod !== 'all' || fCat !== 'all';
   const cats = [...byCategory(c.bundle.expenses)].sort((a, b) => b[1] - a[1]);
