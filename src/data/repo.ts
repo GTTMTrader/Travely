@@ -560,6 +560,15 @@ export async function saveExpense(tripId: string, uid: string, data: ExpenseInpu
     }),
   );
 }
+/** 정산 완료 표시/해제 (여러 건 한 번에). 다른 사람이 그 사이 고쳤으면 충돌로 실패 */
+export const setExpensesSettled = (tripId: string, uid: string, list: Expense[], settled: boolean) =>
+  track(settled ? '정산 완료로 표시 중' : '정산 완료 해제 중', () =>
+    store.batch(list.map((e) => ({
+      type: 'update' as const,
+      path: P.doc(tripId, 'expenses', e.id),
+      data: { split: { ...e.split, settled }, version: e.version + 1, updatedBy: uid, updatedAt: SERVER_TIME },
+    }))),
+  );
 export const deleteExpense = (tripId: string, id: string) => track('지출 삭제 중', () => store.batch([{ type: 'delete', path: P.doc(tripId, 'expenses', id) }]));
 
 // ───────── 준비물 ─────────

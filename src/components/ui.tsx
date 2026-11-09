@@ -130,7 +130,12 @@ export function Sheet({ onClose, children, label, wide }: { onClose: () => void;
       if (startY === null) return;
       const d = e.touches[0].clientY - startY;
       if (!dragging) {
-        if (d < -4 || Math.abs(e.touches[0].clientX - startX) > Math.abs(d) + 4) return void (startY = null); // 위로 스크롤·가로 이동
+        if (Math.abs(e.touches[0].clientX - startX) > Math.abs(d) + 4) return void (startY = null); // 가로 이동
+        if (d < 0) {
+          // 위로 밀기(내용 아래로 보기): 이미 맨 끝이면 아이폰 '튕김'을 막아 저장 버튼이 바로 눌리게
+          if (el.scrollTop + el.clientHeight >= el.scrollHeight - 1 && e.cancelable) e.preventDefault();
+          return;
+        }
         if (el.scrollTop > 0 && !fromHandle) return void (startY = null); // 내용 중간이면 그냥 스크롤 (손잡이·제목은 예외)
         // 내용이 긴 창은 아이폰이 첫 움직임부터 '고무줄 튕김'으로 가져가 버리므로, 맨 위에서 아래로 당기면 처음부터 막는다
         if (d > 0) e.preventDefault();

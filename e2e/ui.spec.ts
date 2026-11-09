@@ -323,6 +323,28 @@ test('가계부: 결제자·결제수단·분담 방식, 최종 정산 계산, �
   await page.getByTestId('add-expense').click();
   await expect(page.locator('#exp-currency')).toHaveValue('CNY');
   await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+
+  // 정산 완료 체크: 숙소 200,000(내가 결제, 반반)을 빼면 → 남은 것만 계산 (친구→나 70,000 에서 내 몫 +100,000 빠짐 → 나→친구 30,000)
+  const total = await page.getByTestId('total').textContent();
+  const chk = page.locator('.exp-wrap', { hasText: '숙소 예약' }).getByTestId('settle-chk');
+  await chk.click();
+  await expect(chk).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByTestId('settle-now')).toContainText('₩30,000');
+  await expect(page.getByTestId('settled-note')).toContainText('정산 완료 1건(₩200,000)');
+  await expect(page.getByTestId('total')).toHaveText(total!); // 전체 지출은 그대로
+  // 다시 풀면 원래대로
+  await chk.click();
+  await expect(chk).toHaveAttribute('aria-checked', 'false');
+  await expect(page.getByTestId('settle-now')).toContainText('₩70,000');
+  // 최종 정산 탭: 남은 것 모두 정산 완료 → 보낼 돈 없음
+  await page.getByTestId('tab-settle').click();
+  await page.getByRole('button', { name: /모두 정산 완료로 표시/ }).click();
+  await page.getByTestId('confirm').click();
+  await expect(page.getByTestId('settle-now')).toContainText('정산할 금액이 없어요');
+  await expect(page.getByTestId('settle')).toContainText('보낼 돈이 없어요');
+  await page.getByRole('button', { name: '지출 내역' }).click();
+  await expect(page.getByTestId('settle-chk').first()).toHaveAttribute('aria-checked', 'true');
   // 금액 지정 합계가 다르면 저장 막힘
   await page.getByTestId('add-expense').click();
   await page.locator('#exp-title').fill('잘못된 분담');

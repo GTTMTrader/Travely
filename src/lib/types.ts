@@ -240,7 +240,8 @@ export interface Expense {
   /** 결제자별 결제 금액 (결제 통화). 합계 = amount */
   payers: Record<string, number>;
   /** 부담 방식. equal: 값=1 인 사람끼리 균등 / ratio: 값=비율 / amount: 값=부담 금액(합계=amount) */
-  split: { mode: SplitMode; shares: Record<string, number> };
+  /** settled: 정산 완료로 표시한 지출 (정산 계산에서 제외). 보안 규칙 변경 없이 쓰려고 split 안에 둠 */
+  split: { mode: SplitMode; shares: Record<string, number>; settled?: boolean };
   memo: string;
   createdBy: string;
   updatedBy: string;

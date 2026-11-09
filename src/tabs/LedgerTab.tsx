@@ -5,7 +5,9 @@ import { CURRENCIES, CURRENCY_LABEL, CURRENCY_SYMBOL, EXPENSE_CATEGORY_LABEL, PA
 import { byCategory, expenseKrw, formatKrw, formatMoney, settle, splitSummary } from '../lib/settle';
 import { getKrwRate, type FxRate } from '../lib/fx';
 import { formatDateTime, shortDateDow } from '../lib/time';
-import { Icon, Sheet } from '../components/ui';
+import { ConfirmButton, Icon, Sheet, toast } from '../components/ui';
+import { setExpensesSettled } from '../data/repo';
+import { describeError } from '../lib/saveStatus';
 import ExpenseSheet, { EXPENSE_ICON } from '../sheets/ExpenseSheet';
 
 /** 환율 계산기: 여행 기본 통화 ↔ 원 양방향 */
@@ -81,8 +83,17 @@ export default function LedgerTab() {
   const me = c.user.uid;
   const name = (uid: string) => (uid === me ? '나' : c.nameOf(uid));
   const memberUids = c.activeMembers.map((m) => m.uid);
-  const s = settle(c.bundle.expenses, memberUids);
-  const paidBy = new Map(s.people.map((p) => [p.uid, p.paid]));
+  const isSettled = (e: Expense) => !!e.split.settled;
+  const open = c.bundle.expenses.filter((e) => !isSettled(e));
+  const done = c.bundle.expenses.filter(isSettled);
+  const all = settle(c.bundle.expenses, memberUids); // 여행 전체 지출 (표시용)
+  const s = settle(open, memberUids); // 정산 완료 표시한 건 빼고 남은 것만 정산
+  const doneKrw = done.reduce((t, e) => t + expenseKrw(e), 0);
+  const paidBy = new Map(all.people.map((p) => [p.uid, p.paid]));
+  const toggleSettled = (e: Expense) =>
+    setExpensesSettled(c.tripId, me, [e], !isSettled(e)).catch((er) => toast(describeError(er)));
+  const settleAll = () =>
+    setExpensesSettled(c.tripId, me, open, true).then(() => toast(`${open.length}건을 정산 완료로 표시했어요`), (er) => toast(describeError(er)));
 
   const list = c.bundle.expenses.filter((e) =>
     (fDay === 'all' || (fDay === 'none' ? e.date === null : e.date === fDay)) &&
@@ -106,7 +117,7 @@ export default function LedgerTab() {
 
       <div className="hero">
         <div style={{ opacity: 0.85 }}>여행 전체 지출</div>
-        <div className="big" data-testid="total">{formatKrw(s.total)}</div>
+        <div className="big" data-testid="total">{formatKrw(all.total)}</div>
         <div className="who">
           {memberUids.map((u) => <span key={u}>{name(u)} 결제 <b>{formatKrw(paidBy.get(u) ?? 0)}</b></span>)}
         </div>
@@ -125,6 +136,9 @@ export default function LedgerTab() {
         <div className="hint" style={{ marginTop: 8 }}>
           {memberUids.map((u) => `${name(u)} 부담 ${formatKrw(s.people.find((p) => p.uid === u)?.share ?? 0)}`).join(' · ')} · 결제액 차이로 자동 계산
         </div>
+        {done.length > 0 && (
+          <div className="hint" style={{ marginTop: 4 }} data-testid="settled-note">✓ 정산 완료 {done.length}건({formatKrw(doneKrw)})은 빼고 남은 {open.length}건만 계산했어요</div>
+        )}
       </div>
 
       <div className="seg" style={{ margin: '16px 0 12px' }}>
@@ -167,8 +181,10 @@ export default function LedgerTab() {
               <div className="small faint" style={{ fontWeight: 700, margin: '0 4px 8px' }}>{g.d ? `DAY ${c.dayIndex(g.d) + 1} · ${shortDateDow(g.d)}` : '여행 전 / 날짜 없음'} · {formatKrw(g.items.reduce((t, e) => t + expenseKrw(e), 0))}</div>
               {g.items.map((e) => {
                 const payerIds = Object.keys(e.payers).filter((k) => e.payers[k] > 0);
+                const st = isSettled(e);
                 return (
-                  <button key={e.id} className="exp-card" onClick={() => setEdit(e)} data-testid="expense">
+                  <div key={e.id} className={`exp-wrap ${st ? 'settled' : ''}`}>
+                  <button className="exp-card" onClick={() => setEdit(e)} data-testid="expense">
                     <span className="exp-ico">{EXPENSE_ICON[e.category]}</span>
                     <span className="t ellipsis">{e.title}</span>
                     <span className="amt">{e.currency === 'KRW' ? formatKrw(e.amount) : formatMoney(e.amount, e.currency)}</span>
@@ -177,8 +193,12 @@ export default function LedgerTab() {
                       {e.currency !== 'KRW' && <> · ≈ {formatKrw(expenseKrw(e))}{e.krwActual ? ' 실결제' : ''}</>}
                       {e.time ? ` · ${e.time}` : ''}
                     </span>
-                    <span className="s" style={{ gridColumn: '2 / 4' }}>{splitSummary(e, name, memberUids.length)}</span>
+                    <span className="s" style={{ gridColumn: '2 / 4', paddingRight: 92 }}>{splitSummary(e, name, memberUids.length)}</span>
                   </button>
+                  <button className={`settle-chk ${st ? 'on' : ''}`} role="checkbox" aria-checked={st} aria-label={`${e.title} 정산 완료`} disabled={!c.editable} onClick={() => toggleSettled(e)} data-testid="settle-chk">
+                    <span className="box">{st ? '✓' : ''}</span>정산 완료
+                  </button>
+                  </div>
                 );
               })}
             </section>
@@ -189,7 +209,7 @@ export default function LedgerTab() {
       {tab === 'settle' && (
         <div className="col" style={{ gap: 14 }} data-testid="settle">
           <div className="card pad">
-            <div className="small muted" style={{ marginBottom: 6 }}>최종 송금</div>
+            <div className="small muted" style={{ marginBottom: 6 }}>{done.length ? `남은 지출 ${open.length}건 기준 송금` : '최종 송금'}</div>
             {s.transfers.length === 0 ? <b style={{ fontSize: 20 }}>보낼 돈이 없어요 ✓</b> : s.transfers.map((t, i) => (
               <div key={i} className="row" style={{ fontSize: 22, fontWeight: 800, margin: '4px 0' }} data-testid="transfer">
                 <span>{name(t.from)}</span><Icon name="next" /><span className="grow">{name(t.to)}</span>
@@ -197,6 +217,13 @@ export default function LedgerTab() {
               </div>
             ))}
           </div>
+          {c.editable && open.length > 0 && (
+            <div className="card pad">
+              <div className="small muted" style={{ marginBottom: 8 }}>위 금액대로 보냈다면, 지금까지 지출을 한 번에 정산 완료로 표시할 수 있어요. 이후 지출만 새로 계산돼요.</div>
+              <ConfirmButton className="btn soft block" label={`남은 ${open.length}건 모두 정산 완료로 표시`} confirmLabel="정말 표시할까요?" onConfirm={settleAll} />
+            </div>
+          )}
+          {done.length > 0 && <p className="hint" style={{ margin: '0 2px' }}>✓ 정산 완료 {done.length}건({formatKrw(doneKrw)})은 계산에서 빠져 있어요. 지출 내역에서 체크를 풀면 다시 들어가요.</p>}
           <div className="card" style={{ overflowX: 'auto' }}>
             <table className="table">
               <thead><tr><th>이름</th><th>실제 결제</th><th>부담액</th><th>차액</th></tr></thead>

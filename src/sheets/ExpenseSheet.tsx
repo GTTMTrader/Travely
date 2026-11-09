@@ -132,7 +132,7 @@ export default function ExpenseSheet({ expense, onClose }: { expense?: Expense; 
       title: title.trim().slice(0, 100), date, time: time || null, category, amount: round(amount, currency), currency,
       krwRate: currency === 'KRW' ? 1 : rate, krwRateDate: currency === 'KRW' ? null : rateDate, krwActual: actual && actual > 0 ? Math.round(actual) : null,
       method, cardName: method === 'credit' || method === 'debit' ? cardName.trim().slice(0, 60) : '', platform: platform.trim().slice(0, 60),
-      payers: payersMap(), split: split(), memo: memo.trim().slice(0, 1000),
+      payers: payersMap(), split: expense?.split.settled ? { ...split(), settled: true } : split(), memo: memo.trim().slice(0, 1000),
     };
     setBusy(true);
     try {
