@@ -25,7 +25,12 @@ const P = {
   doc: (t: string, c: string, id: string) => `trips/${t}/${c}/${id}`,
   chunk: (t: string, f: string, n: number) => `trips/${t}/files/${f}/chunks/${String(n).padStart(4, '0')}`,
 };
-const SUBS = ['members', 'invites', 'days', 'items', 'legs', 'bookings', 'files', 'expenses', 'packing'] as const;
+/**
+ * 여행 화면이 실시간으로 구독하는 하위 컬렉션. 모든 '멤버'가 읽을 수 있는 것만 넣는다.
+ * (invites 는 보안 규칙상 여행 주인만 목록 조회 가능 → 여기 넣으면 초대받은 사람 화면 전체가 '권한 없음'이 됨.
+ *  초대 목록은 공유 창에서 주인일 때만 useInvites 로 따로 구독)
+ */
+export const SUBS = ['members', 'days', 'items', 'legs', 'bookings', 'files', 'expenses', 'packing'] as const;
 
 // ───────── 정규화 (예전 문서·누락 필드 보정) ─────────
 const str = (v: unknown, d = '') => (typeof v === 'string' ? v : d);
@@ -660,11 +665,17 @@ export function watchTrip(tripId: string, cb: (w: TripWatch) => void): Unsub {
       },
     });
   };
-  const onErr = (e: unknown) => {
-    if ((e as { code?: string })?.code === 'permission-denied') {
-      denied = true;
-      emit();
+  // 여행 문서·멤버 목록을 못 읽을 때만 '권한 없음'. 다른 컬렉션 하나가 실패해도 화면 전체를 막지 않고 빈 목록으로 보여줌
+  const onErr = (part: 'trip' | (typeof SUBS)[number]) => (e: unknown) => {
+    const code = (e as { code?: string })?.code;
+    console.warn(`[Travely] ${part} 구독 실패`, code, e);
+    if (part === 'trip' || part === 'members') {
+      if (code === 'permission-denied') denied = true;
+    } else {
+      parts[part] = parts[part] ?? [];
+      cache[part] = true;
     }
+    emit();
   };
   const unsubs: Unsub[] = [
     store.watchDoc(P.trip(tripId), (d, m) => {
@@ -677,14 +688,14 @@ export function watchTrip(tripId: string, cb: (w: TripWatch) => void): Unsub {
         trip = toTrip(tripId, d);
       }
       emit();
-    }, onErr),
+    }, onErr('trip')),
     ...SUBS.map((s) =>
       store.watchCol(P.col(tripId, s), (docs, m) => {
         parts[s] = docs;
         cache[s] = m.fromCache;
         pend[s] = m.pending;
         emit();
-      }, onErr)),
+      }, onErr(s))),
   ];
   return () => unsubs.forEach((u) => u());
 }
