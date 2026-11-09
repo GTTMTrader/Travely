@@ -146,6 +146,12 @@ test('일정: 추가·메모·체크·이동 정보·순서·후보·삭제', as
   for (let i = 1; i <= 15; i++) {
     await touch('touchMove', from!.x + 60, from!.y + 20 + ((to!.y + 5 - from!.y - 20) * i) / 15);
     await page.waitForTimeout(16);
+    if (i === 10) {
+      // 끄는 중: 떠 있는 카드가 맨 위(오버레이)에 하나, 원래 자리는 점선 빈칸
+      await expect(page.locator('.tl-card.lifted')).toHaveCount(1);
+      await expect(page.locator('[data-testid="tl-item"].dragging')).toHaveCount(1);
+      await page.screenshot({ path: 'test-results/ui-dragging.png' });
+    }
   }
   await touch('touchEnd');
   await expect.poll(() => names(page, D1)).toEqual(['맥주박물관', '성 미카엘 성당', '잔교']);

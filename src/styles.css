@@ -198,7 +198,17 @@ a { color: var(--primary); }
 .empty-day { border: 1.5px dashed #ddd7ee; border-radius: var(--radius); padding: 20px; text-align: center; color: var(--ink-3); }
 .cand-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
 .cand-dot { width: 26px; height: 26px; border-radius: 50%; border: 2.5px dashed var(--primary-2); flex: none; }
-.dragging { opacity: 0.9; box-shadow: 0 14px 34px rgba(60, 40, 140, 0.22); }
+/* 순서 바꾸기: 원래 자리는 점선 빈칸, 손가락 아래 카드는 떠오른 채 맨 위 */
+.dragging .tl-card { opacity: 0.38; border: 2px dashed var(--primary-2); background: transparent; box-shadow: none; }
+.dragging .tl-rail, .dragging .tl-gap { opacity: 0.25; }
+.tl-sorting .tl-gap .leg { opacity: 0.35; transition: opacity 0.2s ease; }
+.lifted-wrap { pointer-events: none; }
+.lifted-wrap .tl-rail { opacity: 0; }
+.tl-card.lifted { background: var(--surface); border-width: 2px; border-style: solid; margin-bottom: 0; animation: lift 0.22s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+@keyframes lift {
+  from { transform: scale(1); box-shadow: 0 2px 6px rgba(60, 40, 140, 0.1); }
+  to { transform: scale(1.035); box-shadow: 0 22px 44px rgba(60, 40, 140, 0.28), 0 6px 14px rgba(60, 40, 140, 0.14); }
+}
 
 /* 체크 항목 */
 .checks { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }

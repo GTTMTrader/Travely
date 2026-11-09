@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { DndContext, closestCenter, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { DndContext, DragOverlay, closestCenter, defaultDropAnimationSideEffects, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent, type DropAnimation, type Modifier } from '@dnd-kit/core';
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Day, Item } from '../lib/types';
@@ -25,7 +25,7 @@ export interface TimelineHandlers {
 
 function ItemCard({ item, num, color, selected, prevPlace, h, now }: { item: Item; num?: number; color: string; selected: boolean; prevPlace: Item | null; h: TimelineHandlers; now?: 'now' | 'next' }) {
   const c = useTripCtx();
-  const sortable = useSortable({ id: item.id, disabled: !c.editable });
+  const sortable = useSortable({ id: item.id, disabled: !c.editable, transition: SORT_TRANSITION });
   const style = { transform: CSS.Transform.toString(sortable.transform), transition: sortable.transition };
   const [open, setOpen] = useState(false);
   const leg = prevPlace ? c.legs.get(`${prevPlace.id}__${item.id}`) : null;
@@ -113,10 +113,48 @@ function ItemCard({ item, num, color, selected, prevPlace, h, now }: { item: Ite
   );
 }
 
+/** 아이폰 목록 순서 바꾸기 느낌: 빠르게 시작해 부드럽게 멈추는 곡선 */
+const IOS_EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
+const SORT_TRANSITION = { duration: 320, easing: IOS_EASE };
+const DROP_ANIMATION: DropAnimation = {
+  duration: 300,
+  easing: IOS_EASE,
+  sideEffects: defaultDropAnimationSideEffects({ styles: { active: { opacity: '0.35' } } }),
+};
+/** 위아래로만 움직이게 */
+const verticalOnly: Modifier = ({ transform }) => ({ ...transform, x: 0 });
+
+/** 끌고 있는 동안 손가락 아래 떠 있는 카드 (항상 맨 위, 살짝 커지고 그림자) */
+function LiftedCard({ item, num, color, offset }: { item: Item; num?: number; color: string; offset: number }) {
+  return (
+    <div className="tl-row lifted-wrap" style={{ paddingTop: offset }}>
+      <div className="tl-rail">
+        {item.kind !== 'memo' && <span className="tl-time" style={{ color: item.time ? color : 'var(--ink-3)' }}>{item.time ?? '--:--'}</span>}
+        {item.kind === 'place' && <span className="tl-num" style={{ background: color }}>{num}</span>}
+        {item.kind === 'memo' && <span className="tl-num memo" style={{ background: color }} />}
+        {item.kind === 'flight' && <span className="tl-num" style={{ background: color }}><Icon name="plane" size={18} /></span>}
+      </div>
+      <div className={`tl-card ${item.kind} lifted`} style={{ borderColor: color }}>
+        {item.kind === 'place' && item.place ? (
+          <>
+            <div className="cat">{[item.category ? CATEGORY_LABEL[item.category] : null, item.tag || null].filter(Boolean).join(' · ') || '장소'}</div>
+            <div className="name">{item.place.nameKo}</div>
+            {item.place.nameLocal && <div className="local">{item.place.nameLocal}</div>}
+          </>
+        ) : (
+          <div className="memo-text clamp" style={{ WebkitLineClamp: 2 }}>{item.kind === 'flight' ? '✈️ 항공편' : item.memo}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function DayTimeline({ day, items, selectedId, h, nowMark }: { day: Day; items: Item[]; selectedId: string | null; h: TimelineHandlers; nowMark?: { id: string; state: 'now' | 'next' } | null }) {
   const c = useTripCtx();
   const color = dayColor(day.index).main;
   const [optimistic, setOptimistic] = useState<string[] | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [liftOffset, setLiftOffset] = useState(0); // 원래 칸 안에서 카드가 시작하는 높이(위 이동 정보 줄) → 떠 있는 카드가 손가락 위치와 맞도록
   useEffect(() => {
     setOptimistic(null);
   }, [items]);
@@ -149,10 +187,25 @@ export function DayTimeline({ day, items, selectedId, h, nowMark }: { day: Day; 
     return <div className="empty-day">아직 일정이 없어요{c.editable ? ' · 아래 ‘+ 일정 추가’로 넣어 보세요' : ''}</div>;
 
   let prev: Item | null = null;
+  const activeItem = activeId ? shown.find((i) => i.id === activeId) ?? null : null;
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={() => { lastDragAt = Date.now(); }} onDragCancel={() => { lastDragAt = Date.now(); }} onDragEnd={onDragEnd}>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      modifiers={[verticalOnly]}
+      autoScroll={{ threshold: { x: 0, y: 0.14 }, acceleration: 7 }}
+      onDragStart={(e) => {
+        lastDragAt = Date.now();
+        const el = document.querySelector(`[data-item-id="${String(e.active.id)}"]`);
+        const row = el?.querySelector('.tl-row');
+        setLiftOffset(el && row ? row.getBoundingClientRect().top - el.getBoundingClientRect().top : 0);
+        setActiveId(String(e.active.id));
+      }}
+      onDragCancel={() => { lastDragAt = Date.now(); setActiveId(null); }}
+      onDragEnd={(e) => { setActiveId(null); void onDragEnd(e); }}
+    >
       <SortableContext items={shown.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-        <div data-testid={`tl-${day.date}`}>
+        <div data-testid={`tl-${day.date}`} className={activeId ? 'tl-sorting' : ''}>
           {shown.map((it) => {
             const p = it.kind === 'place' ? prev : null;
             if (it.kind === 'place') prev = it;
@@ -160,6 +213,9 @@ export function DayTimeline({ day, items, selectedId, h, nowMark }: { day: Day; 
           })}
         </div>
       </SortableContext>
+      <DragOverlay dropAnimation={DROP_ANIMATION} zIndex={55}>
+        {activeItem ? <LiftedCard item={activeItem} num={nums.get(activeItem.id)} color={color} offset={liftOffset} /> : null}
+      </DragOverlay>
     </DndContext>
   );
 }
