@@ -138,7 +138,8 @@ export default function ExpenseImportSheet({ onClose }: { onClose: () => void })
             {fresh.map((i, k) => (
               <div key={k} className="row" style={{ padding: '10px 14px', gap: 10, borderTop: k ? '1px solid var(--line)' : undefined }}>
                 <div className="grow" style={{ minWidth: 0 }}>
-                  <div style={{ fontWeight: 700 }} className="ellipsis">{i.merchant || i.title}</div>
+                  <div style={{ fontWeight: 700 }} className="ellipsis">{i.merchantKo || i.merchant || i.title}</div>
+                  {i.merchantKo && i.merchant && <div className="small faint ellipsis">{i.merchant}</div>}
                   <div className="small muted">{i.date ? shortDateDow(i.date) : '날짜 없음'}{i.time ? ` ${i.time}` : ''} · {PAY_METHOD_LABEL[i.method]}{i.cardName ? `(${i.cardName})` : ''}</div>
                 </div>
                 <div style={{ textAlign: 'right' }}>

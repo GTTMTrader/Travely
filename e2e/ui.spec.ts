@@ -649,7 +649,7 @@ test('지출 한 번에 가져오기: 파일 → 결제자·정산 기본값 →
   const before = await page.getByTestId('expense').count();
   await page.getByTestId('exp-import').click();
   await page.getByTestId('exp-import-file').setInputFiles('e2e/fixtures/expenses.json');
-  await expect(page.getByTestId('exp-import-preview')).toContainText('瑞幸咖啡');
+  await expect(page.getByTestId('exp-import-preview')).toContainText('루이싱 커피');
   await expect(page.getByTestId('exp-import-payer-other')).toHaveClass(/on/); // 파일 기본값: 상대가 결제
   await expect(page.getByTestId('exp-import-split-equal')).toHaveClass(/on/);
   await page.getByTestId('exp-import-rate-CNY').fill('190');
@@ -657,6 +657,7 @@ test('지출 한 번에 가져오기: 파일 → 결제자·정산 기본값 →
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByTestId('expense')).toHaveCount(before + 3);
   await expect(page.locator('.todo-title')).toHaveCount(3);
+  await expect(page.locator('.todo-title', { hasText: '루이싱 커피' })).toHaveCount(1); // 중국어 가맹점 → 한국어 뜻으로 표시
   const row = page.locator('.exp-wrap', { hasText: '128.50' });
   await expect(row).toContainText('위챗');
   await expect(row).toContainText('균등');

@@ -8,7 +8,7 @@
  *   "defaults": { "payer": "me" | "partner" | "<이름>", "split": "equal" | "payerOnly" | "otherOnly" },
  *   "expenses": [
  *     { "date": "2026-11-09", "time": "14:32", "amount": 35, "currency": "CNY",
- *       "method": "alipay", "cardName": "", "platform": "", "merchant": "瑞幸咖啡",
+ *       "method": "alipay", "cardName": "", "platform": "", "merchant": "瑞幸咖啡", "merchantKo": "루이싱 커피 (카페 체인)",
  *       "krwActual": null, "category": "cafe", "title": null, "memo": "",
  *       "payer": "me", "split": "equal" }      ← payer/split 는 건마다 덮어쓰기 (선택)
  *   ]
@@ -33,6 +33,8 @@ export interface ImportedExpense {
   cardName: string;
   platform: string;
   merchant: string;
+  /** 중국어 가맹점 이름의 대략적인 한국어 뜻 (항목 이름 추측용) */
+  merchantKo: string;
   krwActual: number | null;
   category: ExpenseCategory;
   title: string;
@@ -99,7 +101,8 @@ export function buildExpenseImport(text: string, days: Day[], baseCurrency: Curr
     const krw = raw.krwActual ?? raw.krw ?? raw.원화;
     const krwActual = krw == null || krw === '' ? null : parseMoney(krw, 'KRW').amount;
     const merchant = str(raw.merchant ?? raw.store ?? raw.가맹점 ?? raw.상호).slice(0, 80);
-    const memoParts = [merchant ? `가맹점: ${merchant}` : '', str(raw.memo ?? raw.메모)].filter(Boolean);
+    const merchantKo = str(raw.merchantKo ?? raw.merchant_ko ?? raw.번역 ?? raw.가맹점번역).slice(0, 60);
+    const memoParts = [merchant ? `가맹점: ${merchant}${merchantKo ? ` → ${merchantKo}` : ''}` : merchantKo ? `가맹점: ${merchantKo}` : '', str(raw.memo ?? raw.메모)].filter(Boolean);
     const cat = str(raw.category);
     items.push({
       date: parseDate(raw.date ?? raw.날짜, days),
@@ -110,6 +113,7 @@ export function buildExpenseImport(text: string, days: Day[], baseCurrency: Curr
       cardName: str(raw.cardName ?? raw.card ?? raw.카드).slice(0, 60),
       platform: str(raw.platform ?? raw.플랫폼).slice(0, 60),
       merchant,
+      merchantKo,
       krwActual: currency === 'KRW' ? null : krwActual && krwActual > 0 ? Math.round(krwActual) : null,
       category: (CATS as string[]).includes(cat) ? (cat as ExpenseCategory) : 'etc',
       title: (str(raw.title ?? raw.항목) || TITLE_TODO).slice(0, 100),
@@ -146,3 +150,11 @@ export function resolvePayer(key: string, me: string, members: { uid: string; di
 
 /** 이미 있는 지출과 같은지 (날짜·시간·금액·통화가 모두 같으면 중복으로 봄) */
 export const dupKey = (e: { date: string | null; time: string | null; amount: number; currency: string }) => `${e.date ?? ''}|${e.time ?? ''}|${e.amount}|${e.currency}`;
+
+/** 메모 첫 줄 '가맹점: 原文 → 한국어' 에서 한국어 뜻(없으면 원문)만 */
+export function merchantHint(memo: string): string {
+  const m = memo.split('\n')[0].match(/^가맹점:\s*(.+)$/);
+  if (!m) return '';
+  const [orig, ko] = m[1].split(/\s*→\s*/);
+  return (ko || orig || '').trim();
+}

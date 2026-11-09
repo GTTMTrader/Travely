@@ -8,7 +8,7 @@ import { getKrwRate, type FxRate } from '../lib/fx';
 import { ConflictError, describeError } from '../lib/saveStatus';
 import { nowHHMM, shortDateDow, todayLocal } from '../lib/time';
 import { ConfirmButton, Sheet } from '../components/ui';
-import { TITLE_TODO } from '../lib/importExpenses';
+import { TITLE_TODO, merchantHint } from '../lib/importExpenses';
 
 export const EXPENSE_ICON: Record<ExpenseCategory, string> = { stay: '🛏️', food: '🍴', cafe: '☕', transport: '🚕', ticket: '🎫', shop: '🛍️', etc: '🧾' };
 const PLATFORMS = ['현장 결제', '트립닷컴', '클룩', '마이리얼트립', '아고다', '네이버', '디디(택시)', '항공사'];
@@ -157,7 +157,7 @@ export default function ExpenseSheet({ expense, onClose }: { expense?: Expense; 
       <fieldset disabled={!c.editable} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
         <label className="field">
           <span className="label">지출 이름</span>
-          <input className="input" id="exp-title" maxLength={100} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="예: 저녁 식사" />
+          <input className="input" id="exp-title" maxLength={100} value={title} onChange={(e) => setTitle(e.target.value)} placeholder={expense?.title === TITLE_TODO && merchantHint(expense.memo) ? `가맹점: ${merchantHint(expense.memo)}` : '예: 저녁 식사'} />
         </label>
         <div className="chips" style={{ flexWrap: 'wrap', marginBottom: 14 }}>
           {EXPENSE_CATEGORY_ORDER.map((k) => (

@@ -10,7 +10,7 @@ import { setExpensesSettled } from '../data/repo';
 import { describeError } from '../lib/saveStatus';
 import ExpenseSheet, { EXPENSE_ICON } from '../sheets/ExpenseSheet';
 import ExpenseImportSheet from '../sheets/ExpenseImportSheet';
-import { TITLE_TODO } from '../lib/importExpenses';
+import { TITLE_TODO, merchantHint } from '../lib/importExpenses';
 
 /** 환율 계산기: 여행 기본 통화 ↔ 원 양방향 */
 function FxSheet({ onClose }: { onClose: () => void }) {
@@ -193,7 +193,7 @@ export default function LedgerTab() {
                   <div key={e.id} className={`exp-wrap ${st ? 'settled' : ''}`}>
                   <button className="exp-card" onClick={() => setEdit(e)} data-testid="expense">
                     <span className="exp-ico">{EXPENSE_ICON[e.category]}</span>
-                    <span className="t ellipsis">{e.title === TITLE_TODO ? <span className="todo-title">✏️ 내용 입력 필요</span> : e.title}</span>
+                    <span className="t ellipsis">{e.title === TITLE_TODO ? <span className="todo-title">✏️ {merchantHint(e.memo) || '내용 입력 필요'}</span> : e.title}</span>
                     <span className="amt">{e.currency === 'KRW' ? formatKrw(e.amount) : formatMoney(e.amount, e.currency)}</span>
                     <span className="m">
                       {payerIds.map(name).join('·')} 결제 · {PAY_METHOD_LABEL[e.method]}{e.cardName ? `(${e.cardName})` : ''}{e.platform ? ` · ${e.platform}` : ''}
