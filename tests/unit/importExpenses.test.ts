@@ -20,8 +20,8 @@ describe('지출 가져오기', () => {
   });
   it('캡처가 겹쳐 같은 거래가 두 번 들어오면 하나로', () => {
     const e = { date: '2026-11-09', time: '14:32', amount: 35, currency: 'CNY' };
-    const r = buildExpenseImport(JSON.stringify({ expenses: [e, { ...e, time: '14:40' }, e] }), days, 'CNY');
-    expect(r.items).toHaveLength(2);
+    const r = buildExpenseImport(JSON.stringify({ expenses: [e, { ...e, time: '14:40' }, e, { ...e, payer: 'partner' }] }), days, 'CNY');
+    expect(r.items).toHaveLength(3); // 상대가 같은 시각·금액으로 따로 낸 건 남김
     expect(r.warnings.join()).toContain('하나로');
   });
   it('결제자 해석·중복 키', () => {
@@ -29,6 +29,6 @@ describe('지출 가져오기', () => {
     expect(resolvePayer('me', 'a', ms)).toBe('a');
     expect(resolvePayer('partner', 'a', ms)).toBe('b');
     expect(resolvePayer('지수', 'a', ms)).toBe('b');
-    expect(dupKey({ date: '2026-11-09', time: '14:32', amount: 35, currency: 'CNY' })).toBe('2026-11-09|14:32|35|CNY');
+    expect(dupKey({ date: '2026-11-09', time: '14:32', amount: 35, currency: 'CNY' }, 'a')).toBe('2026-11-09|14:32|35|CNY|a');
   });
 });

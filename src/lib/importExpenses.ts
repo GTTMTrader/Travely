@@ -126,7 +126,7 @@ export function buildExpenseImport(text: string, days: Day[], baseCurrency: Curr
   const seen = new Set<string>();
   const before = items.length;
   for (let i = items.length - 1; i >= 0; i--) {
-    const k = dupKey(items[i]);
+    const k = dupKey(items[i], items[i].payer ?? '');
     if (items[i].time && seen.has(k)) items.splice(i, 1);
     else seen.add(k);
   }
@@ -149,7 +149,9 @@ export function resolvePayer(key: string, me: string, members: { uid: string; di
 }
 
 /** 이미 있는 지출과 같은지 (날짜·시간·금액·통화가 모두 같으면 중복으로 봄) */
-export const dupKey = (e: { date: string | null; time: string | null; amount: number; currency: string }) => `${e.date ?? ''}|${e.time ?? ''}|${e.amount}|${e.currency}`;
+/** 같은 거래 판별: 날짜·시간·금액·통화 + 결제자 (둘이 같은 곳에서 같은 금액을 각자 낸 건 서로 다른 거래) */
+export const dupKey = (e: { date: string | null; time: string | null; amount: number; currency: string }, payer = '') =>
+  `${e.date ?? ''}|${e.time ?? ''}|${e.amount}|${e.currency}|${payer}`;
 
 /** 메모 첫 줄 '가맹점: 原文 → 한국어' 에서 한국어 뜻(없으면 원문)만 */
 export function merchantHint(memo: string): string {

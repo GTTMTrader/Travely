@@ -34,14 +34,18 @@ export default function ExpenseImportSheet({ onClose }: { onClose: () => void })
   }, [text, c.bundle.days, c.bundle.trip.baseCurrency]);
   const data = parsed.data;
 
-  const existing = useMemo(() => new Set(c.bundle.expenses.map(dupKey)), [c.bundle.expenses]);
-  const fresh = data ? data.items.filter((i) => !existing.has(dupKey(i))) : [];
-  const dups = data ? data.items.length - fresh.length : 0;
-  const currencies = [...new Set(fresh.map((i) => i.currency).filter((x) => x !== 'KRW'))] as Currency[];
+  const existing = useMemo(
+    () => new Set(c.bundle.expenses.map((e) => dupKey(e, Object.keys(e.payers).filter((k) => e.payers[k] > 0).sort().join(',')))),
+    [c.bundle.expenses],
+  );
 
   // 기본 결제자·분담 = 파일 값
   const filePayer = data ? resolvePayer(data.defaults.payer, me, members) ?? me : me;
   const payerUid = payer ?? filePayer;
+  const payerOf = (i: { payer: string | null }) => (i.payer ? resolvePayer(i.payer, me, members) : null) ?? payerUid;
+  const fresh = data ? data.items.filter((i) => !existing.has(dupKey(i, payerOf(i)))) : [];
+  const dups = data ? data.items.length - fresh.length : 0;
+  const currencies = [...new Set(fresh.map((i) => i.currency).filter((x) => x !== 'KRW'))] as Currency[];
   const splitKey: SplitKey = split ?? data?.defaults.split ?? 'equal';
 
   // 환율: 오늘 환율 자동 → 안 되면 이 여행에서 마지막으로 쓴 환율
@@ -64,7 +68,7 @@ export default function ExpenseImportSheet({ onClose }: { onClose: () => void })
     setErr(null);
     const today = new Date().toISOString().slice(0, 10);
     const rows: ExpenseInput[] = fresh.map((i) => {
-      const p = (i.payer ? resolvePayer(i.payer, me, members) : null) ?? payerUid;
+      const p = payerOf(i);
       const sk = i.split ?? splitKey;
       const other = members.find((m) => m.uid !== p)?.uid;
       const shares =
