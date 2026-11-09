@@ -262,8 +262,7 @@ export function Art({ kind }: { kind: Illustration }) {
     case 'temple':
       return (
         <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-          <defs><linearGradient id="g-t" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#c7c6fb" /><stop offset="1" stopColor="#e9e2fb" /></linearGradient></defs>
-          <rect width="100" height="100" fill="url(#g-t)" />
+          <rect width="100" height="100" fill="#d6d3fa" />
           <rect x="0" y="20" width="10" height="52" fill="#9a93cf" /><rect x="22" y="40" width="16" height="32" fill="#a39cd6" /><rect x="82" y="34" width="18" height="38" fill="#9a93cf" />
           <path d="M44 42h44l-8 10H52z" fill="#d05d6e" /><rect x="46" y="54" width="40" height="4" fill="#d05d6e" /><rect x="50" y="58" width="32" height="10" fill="#f5d6dc" />
           <rect x="0" y="68" width="100" height="32" fill="#9cbde3" /><rect x="36" y="74" width="60" height="5" fill="#6b6aa6" />

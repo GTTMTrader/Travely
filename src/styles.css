@@ -60,6 +60,9 @@ a { color: var(--primary); }
 .center-msg { padding: 56px 24px; text-align: center; color: var(--ink-2); }
 
 /* ── 버튼 ── */
+/* 아이폰 기본 버튼 모양(광택·그라데이션) 끄고 단색만 */
+button, input[type='button'], input[type='submit'] { -webkit-appearance: none; appearance: none; background-image: none; }
+button { -webkit-tap-highlight-color: transparent; }
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 46px; padding: 10px 16px;
   border-radius: 14px; border: 1px solid var(--line); background: var(--surface); font-weight: 700; color: var(--ink);
@@ -128,7 +131,7 @@ a { color: var(--primary); }
 .logo { font-weight: 900; font-style: italic; font-size: 30px; letter-spacing: -0.04em; color: var(--primary); display: inline-flex; align-items: center; gap: 2px; }
 .logo .spark { font-style: normal; font-size: 20px; color: var(--primary-2); }
 .h-title { font-size: 34px; font-weight: 900; letter-spacing: -0.03em; margin: 22px 0 4px; }
-.trip-card { display: flex; gap: 16px; padding: 14px; border-radius: 24px; background: linear-gradient(135deg, #fff, var(--primary-softer)); border: 1px solid var(--line); box-shadow: var(--shadow); text-decoration: none; color: inherit; }
+.trip-card { display: flex; gap: 16px; padding: 14px; border-radius: 24px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); text-decoration: none; color: inherit; }
 .trip-card + .trip-card { margin-top: 14px; }
 .trip-card .art { width: 104px; height: 104px; border-radius: 16px; overflow: hidden; flex: none; }
 .trip-card .art svg { width: 100%; height: 100%; display: block; }
@@ -136,7 +139,7 @@ a { color: var(--primary); }
 .trip-card .meta { font-size: 13.5px; color: var(--ink-2); display: flex; align-items: center; gap: 6px; }
 .trip-card .shortcuts { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
 .trip-card .shortcuts button { border: 0; border-radius: 10px; background: var(--primary-soft); color: var(--primary); font-weight: 700; font-size: 12.5px; padding: 6px 10px; }
-.bottom-cta { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; padding: 12px max(20px, calc(50% - 240px)) calc(16px + var(--safe-b)); background: linear-gradient(to top, var(--bg) 70%, transparent); }
+.bottom-cta { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; padding: 12px max(20px, calc(50% - 240px)) calc(16px + var(--safe-b)); background: var(--bg); }
 
 /* ── 여행 안 헤더·하단 메뉴 ── */
 .t-head { position: sticky; top: 0; z-index: 25; background: rgba(251, 250, 255, 0.92); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: calc(8px + var(--safe-t)) 14px 6px; }
@@ -177,7 +180,7 @@ a { color: var(--primary); }
 .now-pill { position: absolute; top: -9px; right: 14px; background: var(--primary); color: #fff; font-size: 11.5px; font-weight: 800; padding: 2px 9px; border-radius: 999px; box-shadow: 0 3px 8px rgba(109, 61, 242, 0.3); animation: nowPulse 2.4s ease-in-out infinite; }
 @keyframes nowPulse { 0%, 100% { box-shadow: 0 3px 8px rgba(109, 61, 242, 0.3); } 50% { box-shadow: 0 3px 14px rgba(109, 61, 242, 0.6); } }
 .tl-card.memo { background: transparent; border: 1.5px dashed #ddd7ee; padding: 12px 16px; }
-.tl-card.flight { background: linear-gradient(135deg, #f3efff, #eef4ff); }
+.tl-card.flight { background: #f3efff; }
 .tl-card .cat { font-size: 13px; color: var(--ink-2); font-weight: 600; }
 .tl-card .name { font-size: 19px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.3; margin: 2px 0; }
 .tl-card .local { font-size: 13px; color: var(--ink-2); }
@@ -255,7 +258,7 @@ a { color: var(--primary); }
 .file-tile .x { position: absolute; top: 4px; right: 4px; width: 26px; height: 26px; border-radius: 50%; border: 0; background: rgba(30, 20, 60, 0.7); color: #fff; }
 
 /* ── 가계부 ── */
-.hero { border-radius: 26px; padding: 22px; color: #fff; background: linear-gradient(135deg, #7c4dff, #5b2fe0); box-shadow: 0 14px 30px rgba(109, 61, 242, 0.3); }
+.hero { border-radius: 26px; padding: 22px; color: #fff; background: var(--primary); box-shadow: 0 14px 30px rgba(109, 61, 242, 0.3); }
 .hero .big { font-size: 38px; font-weight: 900; letter-spacing: -0.03em; line-height: 1.15; margin: 6px 0 12px; font-variant-numeric: tabular-nums; }
 .hero .who { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 14px; opacity: 0.95; }
 .hero .who b { font-variant-numeric: tabular-nums; }
