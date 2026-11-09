@@ -303,14 +303,26 @@ test('가계부: 결제자·결제수단·분담 방식, 최종 정산 계산, �
   await expect(page.getByTestId('settle-now')).toContainText('₩60,000');
   // 비율 2:1 (내가 30,000 결제, 나 2 : 친구 1) → 친구 부담 10,000 추가 → 70,000
   await page.getByTestId('add-expense').click();
+  await expect(page.locator('#exp-currency')).toHaveValue('KRW'); // 마지막으로 쓴 통화(원화)가 기본
   await page.locator('#exp-title').fill('간식');
-  await page.locator('#exp-currency').selectOption('KRW');
   await page.locator('#exp-amount').fill('30000');
   await page.getByTestId('split-ratio').click();
   await page.locator('#share-me').fill('2');
   await page.locator('#share-gf').fill('1');
   await page.getByTestId('save-expense').click();
   await expect(page.getByTestId('settle-now')).toContainText('₩70,000');
+  // 위안으로 한 번 저장하면 다음 새 지출도 위안
+  await page.getByTestId('add-expense').click();
+  await page.locator('#exp-title').fill('물');
+  await page.locator('#exp-currency').selectOption('CNY');
+  await page.locator('#exp-amount').fill('5');
+  await page.locator('#exp-rate').fill('190');
+  await page.getByTestId('split-onlyMe').click();
+  await page.getByTestId('save-expense').click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.getByTestId('add-expense').click();
+  await expect(page.locator('#exp-currency')).toHaveValue('CNY');
+  await page.keyboard.press('Escape');
   // 금액 지정 합계가 다르면 저장 막힘
   await page.getByTestId('add-expense').click();
   await page.locator('#exp-title').fill('잘못된 분담');

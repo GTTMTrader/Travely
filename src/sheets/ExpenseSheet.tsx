@@ -16,6 +16,26 @@ type Preset = 'equal' | 'onlyMe' | 'onlyFriend' | 'one' | 'amount' | 'ratio';
 const round = (v: number, cur: Currency) => Math.round(v * 10 ** CURRENCY_DECIMALS[cur]) / 10 ** CURRENCY_DECIMALS[cur];
 const numOr0 = (s: string) => (s.trim() === '' ? 0 : Number(s.replace(/,/g, '')));
 
+/** 새 지출의 통화 = 이 여행에서 마지막으로 저장한 통화 (이 폰 기억 → 없으면 내가 넣은 가장 최근 지출) */
+const curKey = (tripId: string) => `travely:lastCurrency:${tripId}`;
+function lastCurrency(tripId: string, uid: string, list: Expense[]): Currency | null {
+  try {
+    const v = localStorage.getItem(curKey(tripId));
+    if (v && (CURRENCIES as readonly string[]).includes(v)) return v as Currency;
+  } catch {
+    /* 저장소 못 쓰면 아래로 */
+  }
+  const mine = list.filter((e) => e.createdBy === uid).sort((a, b) => `${a.date ?? ''}${a.time ?? ''}`.localeCompare(`${b.date ?? ''}${b.time ?? ''}`));
+  return mine.length ? mine[mine.length - 1].currency : null;
+}
+function rememberCurrency(tripId: string, cur: Currency) {
+  try {
+    localStorage.setItem(curKey(tripId), cur);
+  } catch {
+    /* 무시 */
+  }
+}
+
 export default function ExpenseSheet({ expense, onClose }: { expense?: Expense; onClose: () => void }) {
   const c = useTripCtx();
   const people = c.bundle.members.filter((m) => m.status === 'active' || (expense && (expense.payers[m.uid] || expense.split.shares[m.uid])))
@@ -30,7 +50,7 @@ export default function ExpenseSheet({ expense, onClose }: { expense?: Expense; 
   const [time, setTime] = useState(expense?.time ?? (inTrip ? nowHHMM() : ''));
   const [category, setCategory] = useState<ExpenseCategory>(expense?.category ?? 'food');
   const [amountText, setAmountText] = useState(expense ? String(expense.amount) : '');
-  const [currency, setCurrency] = useState<Currency>(expense?.currency ?? c.bundle.trip.baseCurrency);
+  const [currency, setCurrency] = useState<Currency>(() => expense?.currency ?? lastCurrency(c.tripId, c.user.uid, c.bundle.expenses) ?? c.bundle.trip.baseCurrency);
   const [rateText, setRateText] = useState(expense && expense.currency !== 'KRW' ? String(expense.krwRate) : '');
   const [rateInfo, setRateInfo] = useState<FxRate | null>(null);
   const [rateDate, setRateDate] = useState<string | null>(expense?.krwRateDate ?? null);
@@ -117,6 +137,7 @@ export default function ExpenseSheet({ expense, onClose }: { expense?: Expense; 
     setBusy(true);
     try {
       await saveExpense(c.tripId, c.user.uid, data, expense ?? null);
+      rememberCurrency(c.tripId, currency);
       onClose();
     } catch (e) {
       setErr(e instanceof ConflictError ? '친구가 먼저 이 지출을 고쳤어요. 닫았다가 다시 열어 주세요' : describeError(e));
