@@ -28,6 +28,7 @@ jobs:
       - run: npm ci
       - run: npm run test:unit
       - run: npm run build   # Firebase 웹 설정은 .env.production 에서 읽음 (공개돼도 되는 값)
+      - run: node scripts/build-archive.mjs dist/archive.html   # 여행 백업 보기 앱 (백업 파일에 같이 담김)
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

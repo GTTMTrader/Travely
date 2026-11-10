@@ -5,17 +5,18 @@ import { useInvites } from '../data/hooks';
 import { createInvite, deleteTrip, leaveTrip, removeMember, restoreMember, revokeInvite, setMemberRole } from '../data/repo';
 import { describeError } from '../lib/saveStatus';
 import { formatDateTime } from '../lib/time';
-import { isDemo } from '../data/backend';
+import { isArchive, isDemo } from '../data/backend';
 import { ConfirmButton, copyText, Icon, Sheet } from '../components/ui';
 import TripFormSheet from './TripFormSheet';
 import AlbumSheet from './AlbumSheet';
+import BackupSheet from './BackupSheet';
 
 const ROLE = { owner: '만든 사람', editor: '같이 편집', viewer: '보기 전용' } as const;
 
 /** 오른쪽 위 사람 아이콘: 멤버·초대 링크·여행 설정 */
 export default function ShareSheet({ onClose }: { onClose: () => void }) {
   const c = useTripCtx();
-  const isOwner = c.me.role === 'owner';
+  const isOwner = !isArchive && c.me.role === 'owner';
   const invites = useInvites(c.tripId, isOwner);
   const nav = useNavigate();
   const [role, setRole] = useState<'editor' | 'viewer'>('editor');
@@ -24,6 +25,7 @@ export default function ShareSheet({ onClose }: { onClose: () => void }) {
   const [err, setErr] = useState<string | null>(null);
   const [edit, setEdit] = useState(false);
   const [album, setAlbum] = useState(false);
+  const [backup, setBackup] = useState(false);
   const now = Date.now();
   const activeInv = invites.filter((i) => !i.revoked && i.expiresAt > now);
 
@@ -49,6 +51,7 @@ export default function ShareSheet({ onClose }: { onClose: () => void }) {
   };
 
   if (album) return <AlbumSheet onClose={() => setAlbum(false)} />;
+  if (backup) return <BackupSheet onClose={() => setBackup(false)} />;
   if (edit) return <TripFormSheet user={c.user} bundle={c.bundle} onClose={() => setEdit(false)} />;
 
   return (
@@ -136,7 +139,8 @@ export default function ShareSheet({ onClose }: { onClose: () => void }) {
       <div className="col">
         <button className="btn block album-btn" onClick={() => setAlbum(true)} data-testid="open-album"><Icon name="camera" /> 추억 앨범 만들기 (PDF · 사진첩)</button>
         {c.canEditRole && <button className="btn block" onClick={() => setEdit(true)} disabled={!c.editable} data-testid="edit-trip"><Icon name="settings" /> 여행 정보 수정 (이름·도시·기간·통화)</button>}
-        {isOwner ? (
+        {!isArchive && <button className="btn block" onClick={() => setBackup(true)} data-testid="open-backup"><Icon name="file" /> 여행 백업 만들기 (전체 보관용)</button>}
+        {isArchive ? null : isOwner ? (
           <ConfirmButton label="여행 삭제" confirmLabel="정말 삭제 (모두에게서 사라져요)" onConfirm={() => run(async () => { await deleteTrip(c.tripId, c.user.uid); nav('/'); })} />
         ) : (
           <ConfirmButton label="이 여행에서 나가기" confirmLabel="정말 나가기" onConfirm={() => run(async () => { await leaveTrip(c.tripId, c.user.uid); nav('/'); })} />

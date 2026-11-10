@@ -8,6 +8,7 @@ import { describeError } from '../lib/saveStatus';
 import { dateRange, shortDateDow, todayLocal } from '../lib/time';
 import { Art, Icon, Logo, Sheet } from '../components/ui';
 import TripFormSheet from '../sheets/TripFormSheet';
+import RestoreSheet from '../sheets/RestoreSheet';
 import type { Trip } from '../lib/types';
 
 export function dDay(t: Trip, today = todayLocal()): { label: string; past: boolean } {
@@ -25,6 +26,7 @@ export default function HomePage() {
   const [creating, setCreating] = useState(false);
   const [account, setAccount] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [restore, setRestore] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
   const today = todayLocal();
@@ -91,11 +93,15 @@ export default function HomePage() {
         <button className="btn soft block" style={{ marginTop: 16 }} onClick={makeSample} disabled={busy}>사진 속 일정으로 샘플 여행 만들기</button>
       )}
       {msg && <p className="err">{msg}</p>}
+      <button className="btn ghost block" style={{ marginTop: 14 }} onClick={() => setRestore(true)} data-testid="open-restore">
+        <Icon name="file" size={18} /> 백업 파일 열기 · 되살리기
+      </button>
 
       <div className="bottom-cta">
         <button className="btn primary block xl" onClick={() => setCreating(true)} data-testid="new-trip"><Icon name="plus" /> 새 여행 만들기</button>
       </div>
 
+      {restore && user && <RestoreSheet user={user} onClose={() => setRestore(false)} />}
       {creating && user && <TripFormSheet user={user} onClose={() => setCreating(false)} onSaved={(id) => nav(`/trip/${id}/plan`)} />}
       {account && user && (
         <Sheet onClose={() => setAccount(false)} label="내 계정">

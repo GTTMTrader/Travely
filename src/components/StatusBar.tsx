@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { setSaveState, useSaveState } from '../lib/saveStatus';
 import { formatDateTime } from '../lib/time';
-import { isDemo } from '../data/backend';
+import { isArchive, isDemo } from '../data/backend';
 
 /** 제목 아래 얇은 상태 줄: 저장 중/완료/실패/충돌, 오프라인·서버 미연결·마지막 동기화 */
 export default function StatusLine({ online, live, lastSync, viewer }: { online: boolean; live: boolean; lastSync: number | null; viewer: boolean }) {
@@ -23,7 +23,9 @@ export default function StatusLine({ online, live, lastSync, viewer }: { online:
   let cls = '';
   let text: string;
   let close = false;
-  if (save.kind === 'error') {
+  if (isArchive) {
+    text = '백업 보기 · 이 기기에서만 열려요 · 수정은 안 돼요';
+  } else if (save.kind === 'error') {
     cls = 'err';
     text = `저장 실패 · ${save.message}`;
     close = true;

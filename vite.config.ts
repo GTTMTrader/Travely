@@ -20,7 +20,7 @@ export default defineConfig(({ mode }) => ({
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: false,
-      disable: mode === 'memory',
+      disable: mode === 'memory' || mode === 'archive',
       includeAssets: ['icons/*.png', 'icons/icon.svg'],
       manifest: {
         name: 'Travely — 함께 쓰는 여행 플래너',

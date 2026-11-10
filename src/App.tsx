@@ -1,12 +1,13 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
-import { initBackend, isDemo } from './data/backend';
+import { archiveInfo, initBackend, isArchive, isDemo } from './data/backend';
 import { useUser } from './data/hooks';
 import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage';
 import JoinPage from './pages/JoinPage';
 import TripLayout from './pages/TripLayout';
 import { Logo, ToastHost } from './components/ui';
+import { ArchivePicker, ArchiveRibbon } from './pages/ArchivePages';
 
 function SetupNeeded() {
   return (
@@ -33,11 +34,29 @@ function RequireAuth({ children }: { children: ReactNode }) {
 
 export default function App() {
   const [state, setState] = useState<'loading' | 'ok' | 'config'>('loading');
+  const [reason, setReason] = useState('');
   useEffect(() => {
-    initBackend().then((r) => setState(r.ok ? 'ok' : 'config'));
+    initBackend().then((r) => {
+      setReason(r.reason ?? '');
+      setState(r.ok ? 'ok' : 'config');
+    });
   }, []);
-  if (state === 'loading') return <div className="app"><div className="center-msg">불러오는 중…</div></div>;
-  if (state === 'config') return <div className="app"><SetupNeeded /></div>;
+  if (state === 'loading') return <div className="app"><div className="center-msg">{isArchive ? '백업 여는 중…' : '불러오는 중…'}</div></div>;
+  if (state === 'config') return <div className="app">{isArchive ? <ArchivePicker error={reason.startsWith('archive-bad:') ? reason.slice(12) : null} /> : <SetupNeeded />}</div>;
+  if (isArchive && archiveInfo) {
+    const home = `/trip/${archiveInfo.tripId}/plan`;
+    return (
+      <div className="app">
+        <ArchiveRibbon />
+        <Routes>
+          <Route path="/trip/:tripId/:tab" element={<RequireAuth><TripLayout /></RequireAuth>} />
+          <Route path="/trip/:tripId" element={<RequireAuth><TripLayout /></RequireAuth>} />
+          <Route path="*" element={<Navigate to={home} replace />} />
+        </Routes>
+        <ToastHost />
+      </div>
+    );
+  }
   return (
     <div className="app">
       {isDemo && <div className="demo-ribbon">미리보기 · 서버에 저장되지 않아요 · ‘(예시)’ 항목은 설명용</div>}

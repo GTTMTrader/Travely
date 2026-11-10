@@ -9,7 +9,7 @@ import './styles.css';
 blockPageZoom();
 
 // 서비스워커(PWA)는 실제 배포 빌드에서만 등록 + 새 버전 자동 감지
-if (import.meta.env.PROD && import.meta.env.VITE_DATA_MODE !== 'memory') {
+if (import.meta.env.PROD && !import.meta.env.VITE_DATA_MODE) {
   import('virtual:pwa-register')
     .then(({ registerSW }) =>
       registerSW({

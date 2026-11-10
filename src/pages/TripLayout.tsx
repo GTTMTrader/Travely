@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { Link, NavLink, useNavigate, useParams } from 'react-router-dom';
 import type { AppUser } from '../data/auth';
+import { isArchive } from '../data/backend';
 import { useItemsByDay, useOnline, useTrip, useUser } from '../data/hooks';
 import type { Booking, FileMeta, Item, Leg, Member, TripBundle } from '../lib/types';
 import { mdSlash } from '../lib/time';
@@ -62,7 +63,8 @@ export default function TripLayout() {
     if (!bundle || !user || w.status !== 'ready') return null;
     const me = bundle.members.find((m) => m.uid === user.uid && m.status === 'active');
     if (!me) return null;
-    const canEditRole = me.role === 'owner' || me.role === 'editor';
+    // 백업 보기: 누구든 읽기 전용
+    const canEditRole = !isArchive && (me.role === 'owner' || me.role === 'editor');
     const names = new Map(bundle.members.map((m) => [m.uid, m.uid === user.uid ? `${m.displayName}` : m.displayName]));
     const dayIdx = new Map(bundle.days.map((d) => [d.date, d.index]));
     return {
@@ -94,7 +96,7 @@ export default function TripLayout() {
     <Ctx.Provider value={ctx}>
       <header className="t-head">
         <div className="bar">
-          <button className="icon-btn round" onClick={() => nav('/')} aria-label="내 여행으로"><Icon name="back" /></button>
+          {isArchive ? <span aria-hidden /> : <button className="icon-btn round" onClick={() => nav('/')} aria-label="내 여행으로"><Icon name="back" /></button>}
           <div style={{ minWidth: 0 }}>
             <h1 className="ellipsis" data-testid="trip-title">{t.name}</h1>
             <div className="sub num">{mdSlash(t.startDate)} – {mdSlash(t.endDate)} · {ctx.activeMembers.length}명 공유</div>
