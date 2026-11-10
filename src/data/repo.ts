@@ -569,6 +569,15 @@ export const setExpensesSettled = (tripId: string, uid: string, list: Expense[],
       data: { split: { ...e.split, settled }, version: e.version + 1, updatedBy: uid, updatedAt: SERVER_TIME },
     }))),
   );
+/** 지출 이름만 바꾸기 (가져온 지출의 '내용 입력 필요' → 가맹점 뜻 그대로 저장 등, 여러 건 한 번에) */
+export const renameExpenses = (tripId: string, uid: string, list: { e: Expense; title: string }[]) =>
+  track('지출 이름 저장 중', () =>
+    store.batch(list.map(({ e, title }) => ({
+      type: 'update' as const,
+      path: P.doc(tripId, 'expenses', e.id),
+      data: { title: title.trim().slice(0, 100), version: e.version + 1, updatedBy: uid, updatedAt: SERVER_TIME },
+    }))),
+  );
 export const deleteExpense = (tripId: string, id: string) => track('지출 삭제 중', () => store.batch([{ type: 'delete', path: P.doc(tripId, 'expenses', id) }]));
 
 // ───────── 준비물 ─────────

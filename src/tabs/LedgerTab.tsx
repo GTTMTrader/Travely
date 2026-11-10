@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTripCtx } from '../pages/TripLayout';
 import type { Currency, Expense, ExpenseCategory, PayMethod } from '../lib/types';
 import { CURRENCIES, CURRENCY_LABEL, CURRENCY_SYMBOL, EXPENSE_CATEGORY_LABEL, PAY_METHOD_LABEL } from '../lib/types';
@@ -6,7 +6,7 @@ import { byCategory, expenseKrw, formatKrw, formatMoney, settle, splitSummary } 
 import { getKrwRate, type FxRate } from '../lib/fx';
 import { formatDateTime, shortDateDow } from '../lib/time';
 import { ConfirmButton, Icon, Sheet, toast } from '../components/ui';
-import { setExpensesSettled } from '../data/repo';
+import { renameExpenses, setExpensesSettled } from '../data/repo';
 import { describeError } from '../lib/saveStatus';
 import ExpenseSheet, { EXPENSE_ICON } from '../sheets/ExpenseSheet';
 import ExpenseImportSheet from '../sheets/ExpenseImportSheet';
@@ -95,6 +95,27 @@ export default function LedgerTab() {
   const paidBy = new Map(all.people.map((p) => [p.uid, p.paid]));
   const toggleSettled = (e: Expense) =>
     setExpensesSettled(c.tripId, me, [e], !isSettled(e)).catch((er) => toast(describeError(er)));
+  // 노란 '내용 입력' 지출: 두 번 톡 → 가맹점 뜻 그대로 이름 저장 / 한 번 → 수정 창
+  const tap = useRef<{ id: string; t: number; timer: number } | null>(null);
+  const todos = c.bundle.expenses.filter((e) => e.title === TITLE_TODO && merchantHint(e.memo));
+  const quickName = (list: Expense[]) =>
+    renameExpenses(c.tripId, me, list.map((e) => ({ e, title: merchantHint(e.memo) }))).then(
+      () => toast(list.length === 1 ? `‘${merchantHint(list[0].memo)}’(으)로 저장했어요` : `${list.length}건 이름을 그대로 저장했어요`),
+      (er) => toast(describeError(er)),
+    );
+  const onRow = (e: Expense) => {
+    if (!c.editable || e.title !== TITLE_TODO || !merchantHint(e.memo)) return setEdit(e);
+    const now = Date.now();
+    const p = tap.current;
+    if (p && p.id === e.id && now - p.t < 330) {
+      clearTimeout(p.timer);
+      tap.current = null;
+      void quickName([e]);
+      return;
+    }
+    if (p) clearTimeout(p.timer);
+    tap.current = { id: e.id, t: now, timer: window.setTimeout(() => { tap.current = null; setEdit(e); }, 330) };
+  };
   const settleAll = () =>
     setExpensesSettled(c.tripId, me, open, true).then(() => toast(`${open.length}건을 정산 완료로 표시했어요`), (er) => toast(describeError(er)));
 
@@ -159,6 +180,12 @@ export default function LedgerTab() {
             <b style={{ fontSize: 18 }}>지출 내역 <span style={{ color: 'var(--primary-2)' }}>{list.length}건</span></b>
             <button className="btn ghost sm" onClick={() => setFilters(!filters)} style={{ color: filtered ? 'var(--primary)' : undefined }}><Icon name="filter" size={18} /> {filtered ? '필터 적용 중' : '전체'}</button>
           </div>
+          {c.editable && todos.length > 0 && (
+            <div className="todo-bar" data-testid="todo-bar">
+              <span>✏️ 이름 비어 있는 지출 {todos.length}건 · 노란 칸을 <b>두 번 톡</b> 하면 그대로 저장</span>
+              <ConfirmButton className="btn sm todo-all" label="모두 그대로 저장" confirmLabel={`${todos.length}건 저장할까요?`} onConfirm={() => quickName(todos)} />
+            </div>
+          )}
           {filters && (
             <div className="card pad" style={{ marginBottom: 12 }}>
               <div className="row wrap">
@@ -191,7 +218,7 @@ export default function LedgerTab() {
                 const st = isSettled(e);
                 return (
                   <div key={e.id} className={`exp-wrap ${st ? 'settled' : ''}`}>
-                  <button className="exp-card" onClick={() => setEdit(e)} data-testid="expense">
+                  <button className="exp-card" onClick={() => onRow(e)} data-testid="expense">
                     <span className="exp-ico">{EXPENSE_ICON[e.category]}</span>
                     <span className="t ellipsis">{e.title === TITLE_TODO ? <span className="todo-title">✏️ {merchantHint(e.memo) || '내용 입력 필요'}</span> : e.title}</span>
                     <span className="amt">{e.currency === 'KRW' ? formatKrw(e.amount) : formatMoney(e.amount, e.currency)}</span>

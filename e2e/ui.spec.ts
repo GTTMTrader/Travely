@@ -673,4 +673,19 @@ test('지출 한 번에 가져오기: 파일 → 결제자·정산 기본값 →
   await page.locator('#exp-title').fill('하이디라오 저녁');
   await page.getByTestId('save-expense').click();
   await expect(page.locator('.todo-title')).toHaveCount(2);
+  // 노란 칸 두 번 톡 → 가맹점 뜻 그대로 이름 저장 (창 안 열림)
+  const luckin = page.locator('.exp-wrap', { hasText: '루이싱 커피' }).getByTestId('expense');
+  await luckin.click();
+  await luckin.click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.locator('.exp-wrap', { hasText: '루이싱 커피 (카페 체인)' }).locator('.todo-title')).toHaveCount(0);
+  await expect(page.locator('.todo-title')).toHaveCount(1);
+  // 한 번 톡 → 수정 창, 이름 비운 채 저장 → 가맹점 이름(全家) 그대로
+  await page.locator('.exp-wrap', { hasText: '全家' }).getByTestId('expense').click();
+  await expect(page.locator('#exp-title')).toHaveValue('');
+  await expect(page.locator('#exp-title')).toHaveAttribute('placeholder', '가맹점: 全家');
+  await page.getByTestId('save-expense').click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.locator('.todo-title')).toHaveCount(0);
+  await expect(page.getByTestId('todo-bar')).toHaveCount(0);
 });

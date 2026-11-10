@@ -344,3 +344,5 @@ button { -webkit-tap-highlight-color: transparent; }
 .album-btn { background: #fff4ee; border-color: #f6cdbb; color: #c2552f; }
 
 .todo-title { color: #b7791f; background: #fff6e0; border-radius: 8px; padding: 1px 8px; font-size: 14.5px; }
+.todo-bar { display: flex; align-items: center; gap: 10px; justify-content: space-between; margin: 0 0 12px; padding: 10px 12px; border-radius: 14px; background: #fff6e0; color: #8a5a12; font-size: 13px; }
+.todo-bar .todo-all { flex: none; background: #fff; border-color: #f0d9a6; color: #8a5a12; }
