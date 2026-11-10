@@ -689,3 +689,32 @@ test('지출 한 번에 가져오기: 파일 → 결제자·정산 기본값 →
   await expect(page.locator('.todo-title')).toHaveCount(0);
   await expect(page.getByTestId('todo-bar')).toHaveCount(0);
 });
+
+test('가계부 분석: 사람별 목록 + 분류별 원 그래프', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openTrip(page, '칭다오 · 옌타이');
+  await page.getByTestId('nav-ledger').click();
+  await page.getByTestId('tab-stats').click();
+  await expect(page.getByTestId('donut')).toBeVisible();
+  const n = await page.locator('[data-testid^="cat-"]').count();
+  expect(n).toBeGreaterThan(0);
+  // 사람별: 나 → 내가 결제한 목록
+  await page.getByTestId('person-me').click();
+  await expect(page.getByTestId('stat-row').first()).toBeVisible();
+  const mine = await page.getByTestId('stat-row').count();
+  await page.getByTestId('basis-share').click(); // 부담 기준으로 바꾸면 반반 지출도 포함
+  expect(await page.getByTestId('stat-row').count()).toBeGreaterThanOrEqual(mine);
+  await page.getByTestId('person-me').click(); // 접기
+  // 분류 누르면 그 분류 목록, 그래프 가운데 이름
+  const first = page.locator('[data-testid^="cat-"]').first();
+  await first.click();
+  await expect(first).toHaveClass(/on/);
+  await expect(page.getByTestId('stat-row').first()).toBeVisible();
+  await page.screenshot({ path: 'test-results/ui-stats-390.png', fullPage: true });
+  // 목록 눌러서 수정 창
+  await page.getByTestId('stat-row').first().click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.setViewportSize({ width: 320, height: 700 });
+  await noOverflow(page);
+});

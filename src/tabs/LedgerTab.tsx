@@ -10,6 +10,7 @@ import { renameExpenses, setExpensesSettled } from '../data/repo';
 import { describeError } from '../lib/saveStatus';
 import ExpenseSheet, { EXPENSE_ICON } from '../sheets/ExpenseSheet';
 import ExpenseImportSheet from '../sheets/ExpenseImportSheet';
+import LedgerStats from './LedgerStats';
 import { TITLE_TODO, merchantHint } from '../lib/importExpenses';
 
 /** 환율 계산기: 여행 기본 통화 ↔ 원 양방향 */
@@ -74,7 +75,7 @@ function FxSheet({ onClose }: { onClose: () => void }) {
 
 export default function LedgerTab() {
   const c = useTripCtx();
-  const [tab, setTab] = useState<'list' | 'settle'>('list');
+  const [tab, setTab] = useState<'list' | 'stats' | 'settle'>('list');
   const [edit, setEdit] = useState<Expense | 'new' | null>(null);
   const [fx, setFx] = useState(false);
   const [bulk, setBulk] = useState(false);
@@ -171,6 +172,7 @@ export default function LedgerTab() {
 
       <div className="seg" style={{ margin: '16px 0 12px' }}>
         <button className={tab === 'list' ? 'on' : ''} onClick={() => setTab('list')}>지출 내역</button>
+        <button className={tab === 'stats' ? 'on' : ''} onClick={() => setTab('stats')} data-testid="tab-stats">분석</button>
         <button className={tab === 'settle' ? 'on' : ''} onClick={() => setTab('settle')} data-testid="tab-settle">최종 정산</button>
       </div>
 
@@ -239,6 +241,8 @@ export default function LedgerTab() {
           ))}
         </>
       )}
+
+      {tab === 'stats' && <LedgerStats onOpen={setEdit} />}
 
       {tab === 'settle' && (
         <div className="col" style={{ gap: 14 }} data-testid="settle">
