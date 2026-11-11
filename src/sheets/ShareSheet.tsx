@@ -10,6 +10,7 @@ import { ConfirmButton, copyText, Icon, Sheet } from '../components/ui';
 import TripFormSheet from './TripFormSheet';
 import AlbumSheet from './AlbumSheet';
 import BackupSheet from './BackupSheet';
+import SkinPicker from '../components/SkinPicker';
 
 const ROLE = { owner: '만든 사람', editor: '같이 편집', viewer: '보기 전용' } as const;
 
@@ -135,6 +136,8 @@ export default function ShareSheet({ onClose }: { onClose: () => void }) {
         </>
       )}
 
+      <h3 style={{ marginTop: 22 }}>스킨</h3>
+      <SkinPicker />
       <h3 style={{ marginTop: 22 }}>여행 설정</h3>
       <div className="col">
         <button className="btn block album-btn" onClick={() => setAlbum(true)} data-testid="open-album"><Icon name="camera" /> 추억 앨범 만들기 (PDF · 사진첩)</button>

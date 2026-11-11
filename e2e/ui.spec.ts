@@ -51,6 +51,11 @@ const MINI_PDF = Buffer.from(
   '%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 300]/Contents 4 0 R/Resources<<>>>>endobj\n4 0 obj<</Length 44>>stream\n0 0 0 rg 20 20 160 260 re f\nendstream\nendobj\ntrailer<</Root 1 0 R>>\n%%EOF',
 );
 
+// 실제 날짜가 여행 뒤로 가면 샘플 여행이 '지난 여행'으로 빠지므로, 기본은 출발 전 시각에서 시작 (필요한 테스트는 따로 덮어씀)
+test.beforeEach(async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-11-01T03:00:00Z') }); // 시계는 그 시각부터 계속 흐름
+});
+
 test('홈: 여행 목록·탭·새 여행 만들기', async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-11-01T03:00:00Z')); // 출발 전 기준 (D-day 표시)
   await page.goto(BASE);
@@ -717,4 +722,26 @@ test('가계부 분석: 사람별 목록 + 분류별 원 그래프', async ({ pa
   await page.keyboard.press('Escape');
   await page.setViewportSize({ width: 320, height: 700 });
   await noOverflow(page);
+});
+
+test('스킨: 설정에서 고르면 바로 바뀌고 다시 열어도 유지 (그라데이션 없음)', async ({ page }) => {
+  await page.goto(BASE);
+  const primary = () => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--primary').trim());
+  expect(await primary()).toBe('#6d3df2');
+  await page.getByTestId('open-settings').click();
+  await page.getByTestId('skin-teal').click();
+  expect(await primary()).toBe('#0f766e');
+  await expect(page.getByTestId('skin-teal')).toHaveAttribute('aria-checked', 'true');
+  expect(await page.locator('meta[name="theme-color"]').getAttribute('content')).toBe('#0f766e');
+  await page.reload();
+  expect(await primary()).toBe('#0f766e');
+  // 새 여행 버튼 배경이 단색인지
+  const bg = await page.getByTestId('new-trip').evaluate((el) => getComputedStyle(el).backgroundImage);
+  expect(bg).toBe('none');
+  // 여행 안 설정에서도 바꿀 수 있음
+  await page.getByTestId('trip-card').first().click();
+  await page.getByTestId('share-btn').click();
+  await page.getByTestId('skin-violet').click();
+  expect(await primary()).toBe('#6d3df2');
+  expect(await page.evaluate(() => document.documentElement.dataset.skin)).toBeUndefined();
 });

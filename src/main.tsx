@@ -3,10 +3,12 @@ import { createRoot } from 'react-dom/client';
 import { HashRouter } from 'react-router-dom';
 import App from './App';
 import { blockPageZoom } from './lib/noZoom';
+import { applySkin, getSkin } from './lib/skin';
 import 'leaflet/dist/leaflet.css';
 import './styles.css';
 
 blockPageZoom();
+applySkin(getSkin());
 
 // 서비스워커(PWA)는 실제 배포 빌드에서만 등록 + 새 버전 자동 감지
 if (import.meta.env.PROD && !import.meta.env.VITE_DATA_MODE) {

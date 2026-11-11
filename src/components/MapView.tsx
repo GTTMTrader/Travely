@@ -200,7 +200,7 @@ function Schematic({ model, colorOf, sel, onSelect }: { model: MapModel; colorOf
                 const i = g.entries.findIndex((e) => e.itemId === sel.itemId);
                 onSelect({ itemId: g.entries[(i + 1) % g.entries.length].itemId, seg: null });
               }}>
-              <rect x={-w / 2} y={-46} width={w} height={92} rx={46} fill="#fff" stroke={on ? '#8b5cf6' : '#0002'} strokeWidth={on ? 12 : 3} />
+              <rect x={-w / 2} y={-46} width={w} height={92} rx={46} fill="#fff" style={{ stroke: on ? 'var(--primary-2)' : '#0002' }} strokeWidth={on ? 12 : 3} />
               {g.entries.map((e, i) => (
                 <g key={e.itemId} transform={`translate(${-w / 2 + 46 + i * 84} 0)`}>
                   <circle r={38} fill={colorOf(e.dayId)} />

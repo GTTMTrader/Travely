@@ -9,6 +9,7 @@ import { dateRange, shortDateDow, todayLocal } from '../lib/time';
 import { Art, Icon, Logo, Sheet } from '../components/ui';
 import TripFormSheet from '../sheets/TripFormSheet';
 import RestoreSheet from '../sheets/RestoreSheet';
+import SkinPicker from '../components/SkinPicker';
 import type { Trip } from '../lib/types';
 
 export function dDay(t: Trip, today = todayLocal()): { label: string; past: boolean } {
@@ -52,7 +53,7 @@ export default function HomePage() {
     <div className="page">
       <div className="row between">
         <Logo />
-        <button className="icon-btn round" style={{ width: 52, height: 52 }} onClick={() => setAccount(true)} aria-label="내 계정"><Icon name="users" /></button>
+        <button className="icon-btn round" style={{ width: 52, height: 52 }} onClick={() => setAccount(true)} aria-label="설정" data-testid="open-settings"><Icon name="settings" /></button>
       </div>
       <h1 className="h-title">내 여행</h1>
       <p className="muted" style={{ marginTop: 0 }}>여행마다 일정과 기록을 한곳에서 관리해요</p>
@@ -104,8 +105,12 @@ export default function HomePage() {
       {restore && user && <RestoreSheet user={user} onClose={() => setRestore(false)} />}
       {creating && user && <TripFormSheet user={user} onClose={() => setCreating(false)} onSaved={(id) => nav(`/trip/${id}/plan`)} />}
       {account && user && (
-        <Sheet onClose={() => setAccount(false)} label="내 계정">
-          <h3>내 계정</h3>
+        <Sheet onClose={() => setAccount(false)} label="설정">
+          <h3>설정</h3>
+          <div className="label" style={{ margin: '0 2px 6px' }}>스킨</div>
+          <SkinPicker />
+          <p className="hint" style={{ margin: '4px 2px 18px' }}>이 폰에만 적용돼요. 함께하는 사람은 각자 고른 색으로 보여요.</p>
+          <div className="label" style={{ margin: '0 2px 6px' }}>내 계정</div>
           <dl className="kv"><dt>이름</dt><dd>{user.displayName}</dd><dt>이메일</dt><dd>{user.email || '-'}</dd></dl>
           {rows && rows.length > 0 && !isDemo && (
             <button className="btn soft block" style={{ marginTop: 16 }} onClick={makeSample} disabled={busy}>사진 속 일정으로 샘플 여행 만들기</button>

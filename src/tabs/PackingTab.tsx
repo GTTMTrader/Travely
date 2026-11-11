@@ -11,7 +11,7 @@ import { describeError } from '../lib/saveStatus';
 import { ConfirmButton, Icon, Sheet, toast } from '../components/ui';
 
 const OWNER_STYLE = (owner: string, me: string) =>
-  owner === 'shared' ? { background: '#e6eefe', color: '#3d6fd6' } : owner === me ? { background: 'var(--primary-soft)', color: 'var(--primary)' } : { background: '#fde8f0', color: '#c23f78' };
+  owner === 'shared' ? { background: 'var(--shared-soft)', color: 'var(--shared)' } : owner === me ? { background: 'var(--primary-soft)', color: 'var(--primary)' } : { background: 'var(--partner-soft)', color: 'var(--partner)' };
 
 function Row({ p, onEdit, onToggle }: { p: PackingItem; onEdit: () => void; onToggle: () => void }) {
   const c = useTripCtx();

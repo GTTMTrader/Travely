@@ -13,6 +13,11 @@ const OUT = 'test-results/backup';
 
 test.skip(!existsSync(ARCHIVE), '먼저 node scripts/build-archive.mjs dist/archive.html');
 
+// 실제 날짜가 여행 뒤로 가면 샘플 여행이 '지난 여행'으로 빠지므로, 기본은 출발 전 시각에서 시작 (필요한 테스트는 따로 덮어씀)
+test.beforeEach(async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-11-01T03:00:00Z') }); // 시계는 그 시각부터 계속 흐름
+});
+
 test('여행 백업: 만들기 → 파일로 열기(오프라인·읽기 전용) → 새 여행으로 되살리기', async ({ page, browser }) => {
   test.setTimeout(180_000);
   mkdirSync(OUT, { recursive: true });

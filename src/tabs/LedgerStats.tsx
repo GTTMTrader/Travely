@@ -151,7 +151,7 @@ export default function LedgerStats({ onOpen }: { onOpen: (e: Expense) => void }
                     <b>{name(p.uid)}</b>
                     <b className="num">{formatKrw(v)}</b>
                   </span>
-                  <span className="meter" style={{ marginTop: 6 }}><i style={{ width: `${(v / maxP) * 100}%`, background: p.uid === me ? 'var(--primary)' : '#c23f78' }} /></span>
+                  <span className="meter" style={{ marginTop: 6 }}><i style={{ width: `${(v / maxP) * 100}%`, background: p.uid === me ? 'var(--primary)' : 'var(--partner)' }} /></span>
                   <span className="small muted">{p.list.length}건 · {s.total ? Math.round((v / s.total) * 100) : 0}% · {open ? '접기' : '목록 보기'}</span>
                 </span>
               </button>
