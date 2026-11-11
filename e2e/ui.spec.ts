@@ -563,6 +563,18 @@ test('창 끌어내리기 → "창을 닫을까요?" 확인/취소, 바깥 누�
   await page.getByTestId('close-ok').click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await cdp.detach();
+  // 첫 화면 '설정' 창은 바로 저장되니까 끌어내리면 확인 없이 내려가며 닫힘
+  await page.goto(BASE);
+  await page.getByTestId('open-settings').click();
+  const cdp2 = await page.context().newCDPSession(page);
+  const sb = (await page.locator('.sheet').boundingBox())!;
+  const t2 = (type: string, y = 0) => cdp2.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x: sb.x + sb.width / 2, y, id: 1 }] } as never);
+  await t2('touchStart', sb.y + 60);
+  for (let i = 1; i <= 12; i++) await t2('touchMove', sb.y + 60 + i * 18);
+  await t2('touchEnd');
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
+  await expect(page.getByRole('dialog', { name: '설정' })).toHaveCount(0);
+  await cdp2.detach();
 });
 
 test('여행 중 앱을 열면 지금 시간 일정으로 부드럽게 이동 + "지금" 표시', async ({ page }) => {
@@ -733,6 +745,10 @@ test('스킨: 설정에서 고르면 바로 바뀌고 다시 열어도 유지 (�
   expect(await primary()).toBe('#0f766e');
   await expect(page.getByTestId('skin-teal')).toHaveAttribute('aria-checked', 'true');
   expect(await page.locator('meta[name="theme-color"]').getAttribute('content')).toBe('#0f766e');
+  // 설정 창은 바로 저장되니까 바깥을 누르면 확인 없이 내려가며 닫힘
+  await page.mouse.click(195, 120);
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
+  await expect(page.getByRole('dialog', { name: '설정' })).toHaveCount(0);
   await page.reload();
   expect(await primary()).toBe('#0f766e');
   // 새 여행 버튼 배경이 단색인지

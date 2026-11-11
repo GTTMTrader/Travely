@@ -87,12 +87,33 @@ export function unlockScroll() {
 /**
  * 아래에서 올라오는 창. 위에서 아래로 끌어내리거나(내용이 맨 위일 때) 바깥을 누르면
  * "창을 닫을까요?" 확인 후 닫힌다. 저장·취소 버튼은 바로 닫는다.
+ * quickClose: 고르는 즉시 저장되는 창(설정 등) — 확인 없이 아래로 스르륵 내려가며 닫힘.
  */
-export function Sheet({ onClose, children, label, wide }: { onClose: () => void; children: ReactNode; label: string; wide?: boolean }) {
+export function Sheet({ onClose, children, label, wide, quickClose }: { onClose: () => void; children: ReactNode; label: string; wide?: boolean; quickClose?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
+  const bgRef = useRef<HTMLDivElement>(null);
   const [asking, setAsking] = useState(false);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
+  const quickRef = useRef(!!quickClose);
+  quickRef.current = !!quickClose;
+  const leaving = useRef(false);
+  /** 바깥 누름·끌어내림: 바로 닫는 창이면 아래로 내려가며 닫고, 아니면 확인 */
+  const requestClose = useRef(() => {});
+  requestClose.current = () => {
+    if (!quickRef.current) return setAsking(true);
+    const el = ref.current;
+    if (!el || leaving.current) return;
+    leaving.current = true;
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    el.style.transition = reduce ? 'none' : 'transform .28s cubic-bezier(0.22, 1, 0.36, 1)';
+    el.style.transform = 'translateY(105%)';
+    if (bgRef.current) {
+      bgRef.current.style.transition = reduce ? 'none' : 'background-color .28s ease';
+      bgRef.current.style.backgroundColor = 'transparent';
+    }
+    setTimeout(() => closeRef.current(), reduce ? 0 : 260);
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && closeRef.current();
@@ -150,8 +171,11 @@ export function Sheet({ onClose, children, label, wide }: { onClose: () => void;
     };
     const end = () => {
       if (dragging) {
-        reset();
-        if (dy > 90) setAsking(true);
+        if (dy > 90 && quickRef.current) requestClose.current(); // 지금 위치에서 이어서 내려감
+        else {
+          reset();
+          if (dy > 90) requestClose.current();
+        }
       }
       startY = null;
       dragging = false;
@@ -169,7 +193,7 @@ export function Sheet({ onClose, children, label, wide }: { onClose: () => void;
   }, []);
 
   return (
-    <div className="sheet-bg" onClick={() => setAsking(true)}>
+    <div ref={bgRef} className="sheet-bg" onClick={() => requestClose.current()}>
       <div ref={ref} className="sheet" role="dialog" aria-modal="true" aria-label={label} onClick={(e) => e.stopPropagation()} style={wide ? { maxHeight: '96dvh' } : undefined}>
         <div className="grab-zone"><div className="grab" /></div>
         {children}

@@ -105,7 +105,7 @@ export default function HomePage() {
       {restore && user && <RestoreSheet user={user} onClose={() => setRestore(false)} />}
       {creating && user && <TripFormSheet user={user} onClose={() => setCreating(false)} onSaved={(id) => nav(`/trip/${id}/plan`)} />}
       {account && user && (
-        <Sheet onClose={() => setAccount(false)} label="설정">
+        <Sheet onClose={() => setAccount(false)} label="설정" quickClose>
           <h3>설정</h3>
           <div className="label" style={{ margin: '0 2px 6px' }}>스킨</div>
           <SkinPicker />
